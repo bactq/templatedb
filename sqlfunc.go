@@ -95,6 +95,21 @@ func params(list ...reflect.Value) (string, []any) {
 	return sb.String(), args
 }
 
+func like(param reflect.Value) (string, []any) {
+	var args []any
+	p := fmt.Sprint(param)
+	lb := strings.Builder{}
+	if !strings.HasPrefix(p, "%") {
+		lb.WriteByte('%')
+	}
+	lb.WriteString(p)
+	if !strings.HasSuffix(p, "%") {
+		lb.WriteByte('%')
+	}
+	args = append(args, lb.String())
+	return " like ? ", args
+}
+
 func sqlescape(list ...reflect.Value) (string, error) {
 	sb := strings.Builder{}
 	for i, v := range list {
@@ -112,6 +127,7 @@ func sqlescape(list ...reflect.Value) (string, error) {
 func init() {
 	LoadFunc("comma", comma)
 	LoadFunc("in", inParam)
+	LoadFunc("like", like)
 	LoadFunc("param", params)
 	LoadFunc("sqlescape", sqlescape)
 }

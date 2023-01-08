@@ -31,6 +31,7 @@
         VALUES(@userId, @name, @phone, @introduction, @avatar, @image, @status)       
     </sql>
 
+    <!-- comma用来做逗号处理 -->
     <sql func="TestInsert" name="insertList" >
         INSERT INTO test.goodsshop
         (userId, name, phone, introduction, avatar, image, status)
@@ -38,7 +39,7 @@
         (@userId, @name, @phone, @introduction, @avatar, @image, @status)  
         {end}
     </sql>
-    
+
     <sql func="TestInsert" name="insertListParam" >
         INSERT INTO test.goodsshop
         (userId, name, phone, introduction, avatar, image, status)
