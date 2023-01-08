@@ -71,15 +71,15 @@ func (any *SelectDB[T]) Select(statement string, params any) (rowSlice []*T, err
 		return
 	}
 	defer rows.Close()
+	scanIndex, scanSlice := newScanDest(columns)
 	ret := *(new([]*T))
 	for rows.Next() {
-		receiver := any.newModel(len(columns))
-		destIndex, retSlice := newScanDest(columns)
-		err = rows.Scan(retSlice...)
+		err = rows.Scan(scanSlice...)
 		if err != nil {
 			return
 		}
-		util.ConvertResultAnys(columns, destIndex, retSlice, receiver, template.AsTagString)
+		receiver := any.newModel(len(columns))
+		util.ConvertResultAnys(columns, scanIndex, scanSlice, receiver, template.AsTagString)
 		ret = append(ret, receiver)
 	}
 	return ret, nil
@@ -90,15 +90,15 @@ func (any *SelectDB[T]) SelectFirst(statement string, params any) (row *T, err e
 		return
 	}
 	defer rows.Close()
+	scanIndex, scanSlice := newScanDest(columns)
 	var receiver *T
 	if rows.Next() {
-		receiver = any.newModel(len(columns))
-		destIndex, retSlice := newScanDest(columns)
-		err = rows.Scan(retSlice...)
+		err = rows.Scan(scanSlice...)
 		if err != nil {
 			return
 		}
-		util.ConvertResultAnys(columns, destIndex, retSlice, receiver, template.AsTagString)
+		receiver = any.newModel(len(columns))
+		util.ConvertResultAnys(columns, scanIndex, scanSlice, receiver, template.AsTagString)
 	}
 	return receiver, nil
 }
