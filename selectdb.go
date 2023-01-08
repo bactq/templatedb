@@ -49,7 +49,8 @@ func (any *SelectDB[T]) newModel(len int) *T {
 	return dest
 }
 
-func (any *SelectDB[T]) Query(statement string, params any) (*sql.Rows, []*sql.ColumnType, error) {
+func (any *SelectDB[T]) Query(params any, name []any) (*sql.Rows, []*sql.ColumnType, error) {
+	statement := GetSkipFuncName(3, name)
 	sql, args, err := any.db.templateBuild(statement, params)
 	if err != nil {
 		return nil, nil, err
@@ -65,8 +66,8 @@ func (any *SelectDB[T]) Query(statement string, params any) (*sql.Rows, []*sql.C
 	return rows, columns, nil
 }
 
-func (any *SelectDB[T]) Select(statement string, params any) (rowSlice []*T, err error) {
-	rows, columns, err := any.Query(statement, params)
+func (any *SelectDB[T]) Select(params any, statement ...any) (rowSlice []*T, err error) {
+	rows, columns, err := any.Query(params, statement)
 	if err != nil {
 		return
 	}
@@ -84,8 +85,8 @@ func (any *SelectDB[T]) Select(statement string, params any) (rowSlice []*T, err
 	}
 	return ret, nil
 }
-func (any *SelectDB[T]) SelectFirst(statement string, params any) (row *T, err error) {
-	rows, columns, err := any.Query(statement, params)
+func (any *SelectDB[T]) SelectFirst(params any, statement ...any) (row *T, err error) {
+	rows, columns, err := any.Query(params, statement)
 	if err != nil {
 		return
 	}

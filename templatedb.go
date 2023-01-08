@@ -80,7 +80,8 @@ func (db *DefaultDB) templateBuild(query string, params any) (sql string, args [
 	return templateSql.ExecuteBuilder(params)
 }
 
-func (db *DefaultDB) Exec(statement string, params any) (lastInsertId, rowsAffected int, err error) {
+func (db *DefaultDB) Exec(params any, name ...any) (lastInsertId, rowsAffected int, err error) {
+	statement := GetSkipFuncName(2, name)
 	sql, args, err := db.templateBuild(statement, params)
 	if err != nil {
 		return
@@ -158,7 +159,8 @@ func (tx *TemplateTxDB) AutoCommit(err *error) {
 	}
 }
 
-func (tx *TemplateTxDB) Exec(statement string, params any) (lastInsertId, rowsAffected int, err error) {
+func (tx *TemplateTxDB) Exec(params any, name ...any) (lastInsertId, rowsAffected int, err error) {
+	statement := GetSkipFuncName(2, name)
 	sql, args, err := tx.db.templateBuild(statement, params)
 	if err != nil {
 		return
@@ -178,15 +180,16 @@ func (tx *TemplateTxDB) Exec(statement string, params any) (lastInsertId, rowsAf
 	return int(lastid), int(affected), nil
 }
 
-func (tx *TemplateTxDB) ExecMulti(statement string, param any) (rowsAffected int, err error) {
-	sqls := strings.Split(statement, ";")
+func (tx *TemplateTxDB) ExecMulti(param any, name ...any) (rowsAffected int, err error) {
+	statement := GetSkipFuncName(2, name)
+	execSql, args, err := tx.db.templateBuild(statement, param)
+	if err != nil {
+		return 0, err
+	}
+	sqls := strings.Split(execSql, ";")
 	for _, sql := range sqls {
 		if len(strings.Trim(sql, "\t\n\f\r ")) == 0 {
 			continue
-		}
-		execSql, args, err := tx.db.templateBuild(sql, param)
-		if err != nil {
-			return 0, err
 		}
 		result, err := tx.tx.Exec(execSql, args...)
 		if err != nil {
@@ -201,7 +204,8 @@ func (tx *TemplateTxDB) ExecMulti(statement string, param any) (rowsAffected int
 	return 0, nil
 }
 
-func (tx *TemplateTxDB) PrepareBatch(statement string, params ...any) (rowsAffected int, err error) {
+func (tx *TemplateTxDB) PrepareBatch(params []any, name ...any) (rowsAffected int, err error) {
+	statement := GetSkipFuncName(2, name)
 	var stmtMaps map[string]*sql.Stmt = make(map[string]*sql.Stmt)
 	var tempSql string
 	for _, param := range params {

@@ -42,10 +42,12 @@ func LoadTemplateStatements(sqlDir embed.FS, template map[string]*template.Templ
 			xml.Unmarshal(bytes, &sqlRoot)
 			addParseTree := addCommonTemplate(sqlRoot.Sql, parse)
 			for _, v := range sqlRoot.Sql {
-				key := fmt.Sprintf("%s.%s:%s", sqlRoot.Pkg, v.Func, v.Name)
-				template[key], err = parse(v.Statement, addParseTree)
-				if err != nil {
-					return err
+				if !v.Common {
+					key := fmt.Sprintf("%s.%s:%s", sqlRoot.Pkg, v.Func, v.Name)
+					template[key], err = parse(v.Statement, addParseTree)
+					if err != nil {
+						return err
+					}
 				}
 			}
 		}

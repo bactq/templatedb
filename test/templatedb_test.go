@@ -58,7 +58,7 @@ func TestSelect(t *testing.T) {
 		t.Error(err)
 	}
 	for _, tp := range testParam[1:2] {
-		ret, err := templatedb.DBSelect[GoodShop](db).Select(templatedb.GetCallerFuncName(tp.name), tp.param)
+		ret, err := templatedb.DBSelect[GoodShop](db).Select(tp.param, tp.name)
 		if err != nil {
 			t.Error(err)
 		}
@@ -87,7 +87,7 @@ func TestInFunction(t *testing.T) {
 		t.Error(err)
 	}
 	for _, tp := range TestInFunctionParams {
-		ret, err := templatedb.DBSelect[GoodShop](db).Select(templatedb.GetCallerFuncName(tp.name), tp.param)
+		ret, err := templatedb.DBSelect[GoodShop](db).Select(tp.param, tp.name)
 		if err != nil {
 			t.Error(err)
 		}
@@ -149,7 +149,7 @@ func TestInsert(t *testing.T) {
 		t.Error(err)
 	}
 	for _, tp := range TestInsertParams {
-		lastInsertId, rowsAffected, err := db.Exec(templatedb.GetCallerFuncName(tp.name), tp.param)
+		lastInsertId, rowsAffected, err := db.Exec(tp.param, tp.name)
 		if err != nil {
 			t.Error(err)
 		}
@@ -166,7 +166,7 @@ func TestInsertTx(t *testing.T) {
 		var txfunc = func() {
 			tx, err := db.Begin()
 			defer tx.AutoCommit(&err)
-			lastInsertId, rowsAffected, err := tx.Exec(templatedb.GetFuncNameOfFunction(TestInsert, tp.name), tp.param)
+			lastInsertId, rowsAffected, err := tx.Exec(tp.param, TestInsert, tp.name)
 			if err != nil {
 				t.Error(err)
 			}
