@@ -112,31 +112,6 @@ func (db *DefaultDB) Exec(params any, name ...any) (lastInsertId, rowsAffected i
 	}
 	return int(lastid), int(affected), nil
 }
-
-func (db *DefaultDB) ExecMulti(param any, name ...any) (rowsAffected int, err error) {
-	statement := getSkipFuncName(2, name)
-	execSql, args, err := db.templateBuild(statement, param)
-	if err != nil {
-		return 0, err
-	}
-	sqls := strings.Split(execSql, ";")
-	for _, sql := range sqls {
-		if len(strings.Trim(sql, "\t\n\f\r ")) == 0 {
-			continue
-		}
-		result, err := db.sqlDB.Exec(execSql, args...)
-		if err != nil {
-			return 0, err
-		}
-		itemAffected, err := result.RowsAffected()
-		if err != nil {
-			return 0, err
-		}
-		rowsAffected += int(itemAffected)
-	}
-	return 0, nil
-}
-
 func (db *DefaultDB) Begin() (*TemplateTxDB, error) {
 	tx, err := db.sqlDB.Begin()
 	if err != nil {
