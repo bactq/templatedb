@@ -50,7 +50,7 @@ func (any *SelectDB[T]) newModel(len int) *T {
 }
 
 func (any *SelectDB[T]) Query(params any, name []any) (*sql.Rows, []*sql.ColumnType, error) {
-	statement := GetSkipFuncName(3, name)
+	statement := getSkipFuncName(3, name)
 	sql, args, err := any.db.templateBuild(statement, params)
 	if err != nil {
 		return nil, nil, err

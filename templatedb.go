@@ -4,6 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"embed"
+	"fmt"
+	"reflect"
+	"runtime"
 	"strings"
 
 	"github.com/tianxinzizhen/templatedb/load/xml"
@@ -14,6 +17,15 @@ type DefaultDB struct {
 	sqlDB                   *sql.DB
 	template                map[string]*template.Template
 	delimsLeft, delimsRight string
+}
+
+func getSkipFuncName(skip int, name []any) string {
+	if len(name) > 0 && reflect.TypeOf(name[0]).Kind() == reflect.Func {
+		return fmt.Sprintf("%s:%s", runtime.FuncForPC(reflect.ValueOf(name[0]).Pointer()).Name(), fmt.Sprint(name[1:]...))
+	}
+	pc, _, _, _ := runtime.Caller(skip)
+	funcName := runtime.FuncForPC(pc).Name()
+	return fmt.Sprintf("%s:%s", funcName, fmt.Sprint(name...))
 }
 
 func Delims(delimsLeft, delimsRight string) func(*DefaultDB) {
@@ -81,7 +93,7 @@ func (db *DefaultDB) templateBuild(query string, params any) (sql string, args [
 }
 
 func (db *DefaultDB) Exec(params any, name ...any) (lastInsertId, rowsAffected int, err error) {
-	statement := GetSkipFuncName(2, name)
+	statement := getSkipFuncName(2, name)
 	sql, args, err := db.templateBuild(statement, params)
 	if err != nil {
 		return
@@ -102,7 +114,7 @@ func (db *DefaultDB) Exec(params any, name ...any) (lastInsertId, rowsAffected i
 }
 
 func (db *DefaultDB) ExecMulti(param any, name ...any) (rowsAffected int, err error) {
-	statement := GetSkipFuncName(2, name)
+	statement := getSkipFuncName(2, name)
 	execSql, args, err := db.templateBuild(statement, param)
 	if err != nil {
 		return 0, err
@@ -161,7 +173,7 @@ func (tx *TemplateTxDB) AutoCommit(err *error) {
 }
 
 func (tx *TemplateTxDB) Exec(params any, name ...any) (lastInsertId, rowsAffected int, err error) {
-	statement := GetSkipFuncName(2, name)
+	statement := getSkipFuncName(2, name)
 	sql, args, err := tx.db.templateBuild(statement, params)
 	if err != nil {
 		return
@@ -182,7 +194,7 @@ func (tx *TemplateTxDB) Exec(params any, name ...any) (lastInsertId, rowsAffecte
 }
 
 func (tx *TemplateTxDB) ExecMulti(param any, name ...any) (rowsAffected int, err error) {
-	statement := GetSkipFuncName(2, name)
+	statement := getSkipFuncName(2, name)
 	execSql, args, err := tx.db.templateBuild(statement, param)
 	if err != nil {
 		return 0, err
@@ -206,7 +218,7 @@ func (tx *TemplateTxDB) ExecMulti(param any, name ...any) (rowsAffected int, err
 }
 
 func (tx *TemplateTxDB) PrepareBatch(params []any, name ...any) (rowsAffected int, err error) {
-	statement := GetSkipFuncName(2, name)
+	statement := getSkipFuncName(2, name)
 	var stmtMaps map[string]*sql.Stmt = make(map[string]*sql.Stmt)
 	var tempSql string
 	for _, param := range params {

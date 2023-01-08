@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
-	"runtime"
 	"strings"
 
 	"github.com/tianxinzizhen/templatedb/template"
@@ -134,23 +133,4 @@ func init() {
 
 func LoadFunc(key string, funcMethod any) {
 	sqlfunc[key] = funcMethod
-}
-
-func GetCallerFuncName(name ...any) string {
-	pc, _, _, _ := runtime.Caller(1)
-	funcName := runtime.FuncForPC(pc).Name()
-	return fmt.Sprintf("%s:%s", funcName, fmt.Sprint(name...))
-}
-
-func GetSkipFuncName(skip int, name []any) string {
-	if len(name) > 0 && reflect.TypeOf(name[0]).Kind() == reflect.Func {
-		return fmt.Sprintf("%s:%s", runtime.FuncForPC(reflect.ValueOf(name[0]).Pointer()).Name(), fmt.Sprint(name[1:]...))
-	}
-	pc, _, _, _ := runtime.Caller(skip)
-	funcName := runtime.FuncForPC(pc).Name()
-	return fmt.Sprintf("%s:%s", funcName, fmt.Sprint(name...))
-}
-
-func GetFuncNameOfFunction(f any, name ...any) string {
-	return fmt.Sprintf("%s:%s", runtime.FuncForPC(reflect.ValueOf(f).Pointer()).Name(), fmt.Sprint(name...))
 }
