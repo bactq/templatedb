@@ -4,3 +4,7 @@
 # 注意
 * 默认使用参数解析符号是：@
 * 默认使用结构字段别名tag是：json ，解析方式也是使用的json的（-跳过）（name,omitempty）只读name，后面,omitempty不读取
+
+# 如何使用
+查看文件test/sql/test_sql.xml,test/templatedb_test.go
+有几个例子看，前置需要对golang的模板熟悉
