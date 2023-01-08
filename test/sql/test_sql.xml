@@ -1,17 +1,49 @@
 <root pkg="github.com/tianxinzizhen/templatedb/test">
     <sql common="true" name="clumns">
-        userId,name,phone,introduction,avatar,image
+        id,userId,name,phone,introduction,avatar,image
     </sql>
     <sql func="TestSelect" name="select">
-        select userId,name,phone,introduction,avatar,image from goodsShop where name=@name
+        select userId,name,phone,introduction,avatar,image from goodsShop where name=@name and phone=@phone
     </sql>
     <sql func="TestSelect" name="sqlparam">
-        select userId,name,phone,introduction,avatar,image from goodsShop where name={sql .name}
+        select userId,name,phone,introduction,avatar,image from goodsShop where name={sqlescape .name}
     </sql>
     <sql func="TestSelect" name="param">
         select userId,name,phone,introduction,avatar,image from goodsShop where name={param .name}
     </sql>
     <sql func="TestSelect" >
         select {template "clumns"} from goodsShop where name={param .name}
+    </sql>
+
+    <sql func="TestInFunction" name="inints" >
+        select {template "clumns"} from goodsShop where id {in .ids}
+    </sql>
+    <sql func="TestInFunction" name="inStructs" >
+        select {template "clumns"} from goodsShop where id {in .ids "id"}
+    </sql>
+    <sql func="TestInFunction" name="inMaps" >
+        select {template "clumns"} from goodsShop where id {in .ids "id"}
+    </sql>
+
+    <sql func="TestInsert" name="insertOne" >
+        INSERT INTO test.goodsshop
+        (userId, name, phone, introduction, avatar, image, status)
+        VALUES(@userId, @name, @phone, @introduction, @avatar, @image, @status)       
+    </sql>
+
+    <sql func="TestInsert" name="insertList" >
+        INSERT INTO test.goodsshop
+        (userId, name, phone, introduction, avatar, image, status)
+        VALUES {range $i,$v:=. } {comma $i}
+        (@userId, @name, @phone, @introduction, @avatar, @image, @status)  
+        {end}
+    </sql>
+    
+    <sql func="TestInsert" name="insertListParam" >
+        INSERT INTO test.goodsshop
+        (userId, name, phone, introduction, avatar, image, status)
+        VALUES {range $i,$v:=. } {comma $i}
+        ({param .userId  .name .phone .introduction .avatar .image .status})  
+        {end}
     </sql>
 </root>

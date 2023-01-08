@@ -58,7 +58,6 @@ func (any *SelectDB[T]) Query(statement string, params any) (*sql.Rows, []*sql.C
 	if err != nil {
 		return nil, nil, err
 	}
-	defer rows.Close()
 	columns, err := rows.ColumnTypes()
 	if err != nil {
 		return nil, nil, err
@@ -71,6 +70,7 @@ func (any *SelectDB[T]) Select(statement string, params any) (rowSlice []*T, err
 	if err != nil {
 		return
 	}
+	defer rows.Close()
 	ret := *(new([]*T))
 	for rows.Next() {
 		receiver := any.newModel(len(columns))
@@ -89,6 +89,7 @@ func (any *SelectDB[T]) SelectFirst(statement string, params any) (row *T, err e
 	if err != nil {
 		return
 	}
+	defer rows.Close()
 	var receiver *T
 	if rows.Next() {
 		receiver = any.newModel(len(columns))

@@ -33,8 +33,9 @@ func comma(iVal reflect.Value) (string, error) {
 		return "", nil
 	}
 }
-func inParam(list reflect.Value, fieldName string) (string, []any, error) {
+func inParam(list reflect.Value, fieldNames ...any) (string, []any, error) {
 	list = util.RefValue(list)
+	fieldName := fmt.Sprint(fieldNames...)
 	if list.Kind() == reflect.Slice || list.Kind() == reflect.Array {
 		sb := strings.Builder{}
 		sb.WriteString("in (")

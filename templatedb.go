@@ -23,25 +23,32 @@ func Delims(delimsLeft, delimsRight string) func(*DefaultDB) {
 	}
 }
 
-func LoadSqlByEmbedFS(sqlDir embed.FS) func(*DefaultDB) {
-	return func(db *DefaultDB) {
+func LoadSqlOfXml(sqlDir embed.FS) func(*DefaultDB) error {
+	return func(db *DefaultDB) error {
 		if db.template == nil {
 			db.template = make(map[string]*template.Template)
 		}
-		xml.LoadTemplateStatements(sqlDir, db.template, db.parse)
+		err := xml.LoadTemplateStatements(sqlDir, db.template, db.parse)
+		if err != nil {
+			return err
+		}
+		return nil
 	}
 }
 
-func NewDefaultDB(SqlDB *sql.DB, options ...func(*DefaultDB)) *DefaultDB {
+func NewDefaultDB(SqlDB *sql.DB, options ...func(*DefaultDB) error) (*DefaultDB, error) {
 	db := &DefaultDB{
 		sqlDB:      SqlDB,
 		template:   make(map[string]*template.Template),
 		delimsLeft: "{", delimsRight: "}",
 	}
 	for _, fn := range options {
-		fn(db)
+		err := fn(db)
+		if err != nil {
+			return nil, err
+		}
 	}
-	return db
+	return db, nil
 }
 
 func (db *DefaultDB) parse(parse string, addParseTrees ...func(*template.Template) error) (*template.Template, error) {
