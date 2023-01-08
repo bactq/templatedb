@@ -1,0 +1,17 @@
+<root pkg="github.com/tianxinzizhen/templatedb/test">
+    <sql common="true" name="clumns">
+        userId,name,phone,introduction,avatar,image
+    </sql>
+    <sql func="TestSelect" name="select">
+        select userId,name,phone,introduction,avatar,image from goodsShop where name=@name
+    </sql>
+    <sql func="TestSelect" name="sqlparam">
+        select userId,name,phone,introduction,avatar,image from goodsShop where name={sql .name}
+    </sql>
+    <sql func="TestSelect" name="param">
+        select userId,name,phone,introduction,avatar,image from goodsShop where name={param .name}
+    </sql>
+    <sql func="TestSelect" >
+        select {template "clumns"} from goodsShop where name={param .name}
+    </sql>
+</root>
