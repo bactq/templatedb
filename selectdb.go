@@ -66,8 +66,8 @@ func (any *SelectDB[T]) Query(params any, name []any) (*sql.Rows, []*sql.ColumnT
 	return rows, columns, nil
 }
 
-func (any *SelectDB[T]) Select(params any, statement ...any) (rowSlice []*T, err error) {
-	rows, columns, err := any.Query(params, statement)
+func (any *SelectDB[T]) Select(params any, name ...any) (rowSlice []*T, err error) {
+	rows, columns, err := any.Query(params, name)
 	if err != nil {
 		return
 	}
@@ -85,8 +85,8 @@ func (any *SelectDB[T]) Select(params any, statement ...any) (rowSlice []*T, err
 	}
 	return ret, nil
 }
-func (any *SelectDB[T]) SelectFirst(params any, statement ...any) (row *T, err error) {
-	rows, columns, err := any.Query(params, statement)
+func (any *SelectDB[T]) SelectFirst(params any, name ...any) (row *T, err error) {
+	rows, columns, err := any.Query(params, name)
 	if err != nil {
 		return
 	}

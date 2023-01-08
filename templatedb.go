@@ -101,17 +101,18 @@ func (db *DefaultDB) Exec(params any, name ...any) (lastInsertId, rowsAffected i
 	return int(lastid), int(affected), nil
 }
 
-func (db *DefaultDB) ExecMulti(statement string, param any) (rowsAffected int, err error) {
-	sqls := strings.Split(statement, ";")
+func (db *DefaultDB) ExecMulti(param any, name ...any) (rowsAffected int, err error) {
+	statement := GetSkipFuncName(2, name)
+	execSql, args, err := db.templateBuild(statement, param)
+	if err != nil {
+		return 0, err
+	}
+	sqls := strings.Split(execSql, ";")
 	for _, sql := range sqls {
 		if len(strings.Trim(sql, "\t\n\f\r ")) == 0 {
 			continue
 		}
-		execSql, args, err := db.templateBuild(sql, param)
-		if err != nil {
-			return 0, err
-		}
-		result, err := db.sqlDB.Exec(execSql, args)
+		result, err := db.sqlDB.Exec(execSql, args...)
 		if err != nil {
 			return 0, err
 		}
