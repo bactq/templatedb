@@ -1,6 +1,3 @@
-/*
- *@Author tianxinzizhen@foxmail.com
- */
 package templatedb
 
 import (
