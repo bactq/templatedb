@@ -38,7 +38,7 @@ func DBSelect[T any](db any) *SelectDB[T] {
 	return nil
 }
 
-func (any *SelectDB[T]) newModel(len int) *T {
+func (any *SelectDB[T]) newReceiver(len int) *T {
 	dest := new(T)
 	t := util.RefType(reflect.TypeOf(dest))
 	if util.RefType(t).Kind() == reflect.Map {
@@ -79,7 +79,7 @@ func (any *SelectDB[T]) Select(params any, name ...any) (rowSlice []*T, err erro
 		if err != nil {
 			return
 		}
-		receiver := any.newModel(len(columns))
+		receiver := any.newReceiver(len(columns))
 		util.ConvertResultAnys(columns, scanIndex, scanSlice, receiver, template.AsTagString)
 		ret = append(ret, receiver)
 	}
@@ -98,7 +98,7 @@ func (any *SelectDB[T]) SelectFirst(params any, name ...any) (row *T, err error)
 		if err != nil {
 			return
 		}
-		receiver = any.newModel(len(columns))
+		receiver = any.newReceiver(len(columns))
 		util.ConvertResultAnys(columns, scanIndex, scanSlice, receiver, template.AsTagString)
 	}
 	return receiver, nil
