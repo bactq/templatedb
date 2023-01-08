@@ -48,7 +48,7 @@ var testParam = []struct {
 		Name: "0店铺1",
 	}},
 	{name: "", param: GoodShop{
-		Name: "0店铺1",
+		Name: "3店铺1",
 	}},
 }
 
@@ -57,7 +57,7 @@ func TestSelect(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	for _, tp := range testParam[1:2] {
+	for _, tp := range testParam[4:5] {
 		ret, err := templatedb.DBSelect[GoodShop](db).Select(tp.param, tp.name)
 		if err != nil {
 			t.Error(err)
