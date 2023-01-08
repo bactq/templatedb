@@ -40,6 +40,7 @@ var testParam = []struct {
 		Name:  "0店铺1",
 		Phone: "12345678910",
 	}},
+	{name: "selectAtsign", param: nil},
 	{name: "sqlparam", param: GoodShop{
 		Name: "0店铺1",
 	}},
@@ -56,13 +57,13 @@ func TestSelect(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	for _, tp := range testParam[0:1] {
+	for _, tp := range testParam[1:2] {
 		ret, err := templatedb.DBSelect[GoodShop](db).Select(templatedb.GetCallerFuncName(tp.name), tp.param)
 		if err != nil {
 			t.Error(err)
 		}
 		for _, v := range ret {
-			fmt.Printf("%#v", v)
+			fmt.Printf("%#v\n", v)
 		}
 	}
 }

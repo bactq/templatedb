@@ -5,6 +5,9 @@
     <sql func="TestSelect" name="select">
         select userId,name,phone,introduction,avatar,image from goodsShop where name=@name and phone=@phone
     </sql>
+    <sql func="TestSelect" name="selectAtsign">
+        select userId,name,phone,introduction,avatar,image,status from goodsShop
+    </sql>
     <sql func="TestSelect" name="sqlparam">
         select userId,name,phone,introduction,avatar,image from goodsShop where name={sqlescape .name}
     </sql>
