@@ -49,7 +49,7 @@ func (any *SelectDB[T]) newReceiver(len int) *T {
 	return dest
 }
 
-func (any *SelectDB[T]) Query(params any, name []any) (*sql.Rows, []*sql.ColumnType, error) {
+func (any *SelectDB[T]) query(params any, name []any) (*sql.Rows, []*sql.ColumnType, error) {
 	statement := getSkipFuncName(3, name)
 	sql, args, err := any.db.templateBuild(statement, params)
 	if err != nil {
@@ -67,7 +67,7 @@ func (any *SelectDB[T]) Query(params any, name []any) (*sql.Rows, []*sql.ColumnT
 }
 
 func (any *SelectDB[T]) Select(params any, name ...any) (rowSlice []*T, err error) {
-	rows, columns, err := any.Query(params, name)
+	rows, columns, err := any.query(params, name)
 	if err != nil {
 		return
 	}
@@ -86,7 +86,7 @@ func (any *SelectDB[T]) Select(params any, name ...any) (rowSlice []*T, err erro
 	return ret, nil
 }
 func (any *SelectDB[T]) SelectFirst(params any, name ...any) (row *T, err error) {
-	rows, columns, err := any.Query(params, name)
+	rows, columns, err := any.query(params, name)
 	if err != nil {
 		return
 	}

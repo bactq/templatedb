@@ -32,6 +32,13 @@ func getDB() (*templatedb.DefaultDB, error) {
 	return templatedb.NewDefaultDB(sqldb, templatedb.LoadSqlOfXml(sqlDir))
 }
 
+func TestGetDb(t *testing.T) {
+	_, err := getDB()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 var testParam = []struct {
 	name  string
 	param any

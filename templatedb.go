@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/tianxinzizhen/templatedb/load"
 	"github.com/tianxinzizhen/templatedb/load/xml"
 	"github.com/tianxinzizhen/templatedb/template"
 )
@@ -63,7 +64,7 @@ func NewDefaultDB(SqlDB *sql.DB, options ...func(*DefaultDB) error) (*DefaultDB,
 	return db, nil
 }
 
-func (db *DefaultDB) parse(parse string, addParseTrees ...func(*template.Template) error) (*template.Template, error) {
+func (db *DefaultDB) parse(parse string, addParseTrees ...load.AddParseTree) (*template.Template, error) {
 	templateSql, err := template.New("").Delims(db.delimsLeft, db.delimsRight).Funcs(sqlfunc).Parse(parse)
 	if err != nil {
 		return nil, err
@@ -192,7 +193,7 @@ func (tx *TemplateTxDB) ExecMulti(param any, name ...any) (rowsAffected int, err
 	return 0, nil
 }
 
-func (tx *TemplateTxDB) PrepareBatch(params []any, name ...any) (rowsAffected int, err error) {
+func (tx *TemplateTxDB) PrepareExec(params []any, name ...any) (rowsAffected int, err error) {
 	statement := getSkipFuncName(2, name)
 	var stmtMaps map[string]*sql.Stmt = make(map[string]*sql.Stmt)
 	var tempSql string

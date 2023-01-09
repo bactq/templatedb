@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/tianxinzizhen/templatedb/load"
 	"github.com/tianxinzizhen/templatedb/template"
 )
 
@@ -22,7 +23,7 @@ type SqlStatementRoot struct {
 	Sql     []Sql    `xml:"sql"`
 }
 
-func LoadTemplateStatements(sqlDir embed.FS, template map[string]*template.Template, parse func(parse string, addParseTrees ...func(*template.Template) error) (*template.Template, error)) error {
+func LoadTemplateStatements(sqlDir embed.FS, template map[string]*template.Template, parse func(parse string, addParseTrees ...load.AddParseTree) (*template.Template, error)) error {
 	dir, err := sqlDir.ReadDir(".")
 	if err != nil {
 		return err
@@ -55,7 +56,7 @@ func LoadTemplateStatements(sqlDir embed.FS, template map[string]*template.Templ
 	return nil
 }
 
-func addCommonTemplate(sqls []Sql, parse func(parse string, addParseTrees ...func(*template.Template) error) (*template.Template, error)) func(*template.Template) error {
+func addCommonTemplate(sqls []Sql, parse func(parse string, addParseTrees ...load.AddParseTree) (*template.Template, error)) func(*template.Template) error {
 	return func(t *template.Template) error {
 		for _, v := range sqls {
 			if v.Common {
