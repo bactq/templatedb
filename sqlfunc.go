@@ -124,11 +124,11 @@ func sqlescape(list ...reflect.Value) (string, error) {
 	return sb.String(), nil
 }
 
-func orNull(param reflect.Value) (string, []any) {
+func orNull(param any) (string, []any) {
 	var args []any = make([]any, 1)
 	isTure, _ := template.IsTrue(param)
 	if isTure {
-		args[0] = param.Interface()
+		args[0] = param
 	} else {
 		args[0] = nil
 	}
