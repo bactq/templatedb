@@ -190,7 +190,7 @@ func (tx *TemplateTxDB) ExecMulti(param any, name ...any) (rowsAffected int, err
 		}
 		rowsAffected += int(itemAffected)
 	}
-	return 0, nil
+	return
 }
 
 func (tx *TemplateTxDB) PrepareExec(params []any, name ...any) (rowsAffected int, err error) {
