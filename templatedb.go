@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"reflect"
 	"runtime"
-	"strings"
 
 	"github.com/tianxinzizhen/templatedb/load"
 	"github.com/tianxinzizhen/templatedb/load/xml"
@@ -167,30 +166,6 @@ func (tx *TemplateTxDB) Exec(params any, name ...any) (lastInsertId, rowsAffecte
 		return
 	}
 	return int(lastid), int(affected), nil
-}
-
-func (tx *TemplateTxDB) ExecMulti(param any, name ...any) (rowsAffected int, err error) {
-	statement := getSkipFuncName(2, name)
-	execSql, args, err := tx.db.templateBuild(statement, param)
-	if err != nil {
-		return 0, err
-	}
-	sqls := strings.Split(execSql, ";")
-	for _, sql := range sqls {
-		if len(strings.Trim(sql, "\t\n\f\r ")) == 0 {
-			continue
-		}
-		result, err := tx.tx.Exec(execSql, args...)
-		if err != nil {
-			return 0, err
-		}
-		itemAffected, err := result.RowsAffected()
-		if err != nil {
-			return 0, err
-		}
-		rowsAffected += int(itemAffected)
-	}
-	return
 }
 
 func (tx *TemplateTxDB) PrepareExec(params []any, name ...any) (rowsAffected int, err error) {
