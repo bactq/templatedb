@@ -25,7 +25,7 @@ type GoodShop struct {
 }
 
 func getDB() (*templatedb.DefaultDB, error) {
-	sqldb, err := sql.Open("mysql", "lix:lix@/test")
+	sqldb, err := sql.Open("mysql", "root:lz@3306!@tcp(mysql.local.lezhichuyou.com:3306)/lz_tour?charset=utf8mb4&parseTime=True&loc=Local&multiStatements=true")
 	if err != nil {
 		return nil, err
 	}
@@ -82,7 +82,7 @@ var TestInFunctionParams = []struct {
 	{name: "inMaps", param: map[string]any{"ids": []map[string]any{
 		{"id": 1},
 		{"id": 3},
-		{"id": 10},
+		{"id": 4},
 	}}},
 }
 
