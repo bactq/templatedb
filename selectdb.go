@@ -2,6 +2,7 @@ package templatedb
 
 import (
 	"database/sql"
+	"fmt"
 	"reflect"
 
 	"github.com/tianxinzizhen/templatedb/template"
@@ -17,15 +18,19 @@ type SelectDB[T any] struct {
 	selectdb AnyDB
 }
 
-func newScanDest(columns []*sql.ColumnType) (map[string]int, []any) {
-	indexMap := make(map[string]int, len(columns))
-	retSlice := make([]any, len(columns))
+func newScanDest(columns []*sql.ColumnType, t reflect.Type) map[int][]int {
+	indexMap := make(map[int][]int, len(columns))
 	for i, item := range columns {
-		v := reflect.New(item.ScanType())
-		indexMap[item.Name()] = i
-		retSlice[i] = v.Interface()
+		if t.Kind() == reflect.Struct {
+			f, ok := template.GetFieldByName(t, item.Name())
+			if ok {
+				indexMap[i] = f.Index
+			} else {
+				panic(fmt.Sprintf("类型%v无法扫描字段：%s", t, item.Name()))
+			}
+		}
 	}
-	return indexMap, retSlice
+	return indexMap
 }
 
 func DBSelect[T any](db any) *SelectDB[T] {
@@ -38,24 +43,45 @@ func DBSelect[T any](db any) *SelectDB[T] {
 	return nil
 }
 
-func (any *SelectDB[T]) newReceiver(len int) *T {
-	dest := new(T)
-	t := util.RefType(reflect.TypeOf(dest))
-	if util.RefType(t).Kind() == reflect.Map {
-		*dest = reflect.MakeMapWithSize(reflect.MapOf(t.Key(), t.Elem()), len).Interface().(T)
-	} else if util.RefType(t).Kind() == reflect.Slice {
-		*dest = reflect.MakeSlice(reflect.SliceOf(t.Elem()), 0, len).Interface().(T)
+func (sdb *SelectDB[T]) newReceiver(columns []*sql.ColumnType, scanIndex map[int][]int) (*T, []any) {
+	t := reflect.TypeOf((*T)(nil)).Elem()
+	destSlice := make([]any, 0, len(columns))
+	if t.Kind() == reflect.Struct {
+		dest := new(T)
+		v := reflect.ValueOf(dest).Elem()
+		for si := range columns {
+			destSlice = append(destSlice, &util.StructScaner{Dest: v, Index: scanIndex[si]})
+		}
+		return dest, destSlice
+	} else if t.Kind() == reflect.Map && t.Key().Kind() == reflect.String {
+		var ret *T = new(T)
+		dest := reflect.MakeMapWithSize(reflect.MapOf(t.Key(), t.Elem()), len(columns))
+		for _, v := range columns {
+			destSlice = append(destSlice, &util.MapScaner{Dest: dest, Name: v.Name()})
+		}
+		*ret = dest.Interface().(T)
+		return ret, destSlice
+	} else if t.Kind() == reflect.Slice {
+		var ret *T = new(T)
+		dest := reflect.MakeSlice(reflect.SliceOf(t.Elem()), len(columns), len(columns))
+		for i := range columns {
+			destSlice = append(destSlice, &util.SliceScaner{Dest: dest, Index: i})
+		}
+		*ret = dest.Interface().(T)
+		return ret, destSlice
+	} else {
+		dest := new(T)
+		return dest, []any{dest}
 	}
-	return dest
 }
 
-func (any *SelectDB[T]) query(params any, name []any) (*sql.Rows, []*sql.ColumnType, error) {
+func (sdb *SelectDB[T]) query(params any, name []any) (*sql.Rows, []*sql.ColumnType, error) {
 	statement := getSkipFuncName(3, name)
-	sql, args, err := any.db.templateBuild(statement, params)
+	sql, args, err := sdb.db.templateBuild(statement, params)
 	if err != nil {
 		return nil, nil, err
 	}
-	rows, err := any.selectdb.Query(sql, args...)
+	rows, err := sdb.selectdb.Query(sql, args...)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -66,41 +92,40 @@ func (any *SelectDB[T]) query(params any, name []any) (*sql.Rows, []*sql.ColumnT
 	return rows, columns, nil
 }
 
-func (any *SelectDB[T]) Select(params any, name ...any) []*T {
-	rows, columns, err := any.query(params, name)
+func (sdb *SelectDB[T]) Select(params any, name ...any) []*T {
+	rows, columns, err := sdb.query(params, name)
 	if err != nil {
 		panic(err)
 	}
 	defer rows.Close()
-	scanIndex, scanSlice := newScanDest(columns)
+	scanIndex := newScanDest(columns, reflect.TypeOf((*T)(nil)).Elem())
 	ret := *(new([]*T))
 	for rows.Next() {
-		err = rows.Scan(scanSlice...)
+		receiver, destSlice := sdb.newReceiver(columns, scanIndex)
+		err = rows.Scan(destSlice...)
 		if err != nil {
 			panic(err)
 		}
-		receiver := any.newReceiver(len(columns))
-		util.ConvertResultAnys(columns, scanIndex, scanSlice, receiver, template.AsTagString)
 		ret = append(ret, receiver)
 	}
 	return ret
 }
 
-func (any *SelectDB[T]) SelectFirst(params any, name ...any) *T {
-	rows, columns, err := any.query(params, name)
+func (sdb *SelectDB[T]) SelectFirst(params any, name ...any) *T {
+	rows, columns, err := sdb.query(params, name)
 	if err != nil {
 		panic(err)
 	}
 	defer rows.Close()
-	scanIndex, scanSlice := newScanDest(columns)
-	var receiver *T
+	scanIndex := newScanDest(columns, reflect.TypeOf((*T)(nil)))
 	if rows.Next() {
-		err = rows.Scan(scanSlice...)
+		receiver, destSlice := sdb.newReceiver(columns, scanIndex)
+		err = rows.Scan(destSlice...)
 		if err != nil {
 			panic(err)
 		}
-		receiver = any.newReceiver(len(columns))
-		util.ConvertResultAnys(columns, scanIndex, scanSlice, receiver, template.AsTagString)
+		return receiver
+	} else {
+		return nil
 	}
-	return receiver
 }

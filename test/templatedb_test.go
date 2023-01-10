@@ -25,7 +25,7 @@ type GoodShop struct {
 }
 
 func getDB() (*templatedb.DefaultDB, error) {
-	sqldb, err := sql.Open("mysql", "root:lz@3306!@tcp(mysql.local.lezhichuyou.com:3306)/lz_tour?charset=utf8mb4&parseTime=True&loc=Local&multiStatements=true")
+	sqldb, err := sql.Open("mysql", "lix:lix@tcp(mysql.local.lezhichuyou.com:3306)/lz_tour?charset=utf8mb4&parseTime=True&loc=Local&multiStatements=true")
 	if err != nil {
 		return nil, err
 	}
@@ -57,6 +57,9 @@ var testParam = []struct {
 	{name: "", param: GoodShop{
 		Name: "3店铺1",
 	}},
+	{name: "all", param: GoodShop{
+		Name: "3店铺1",
+	}},
 }
 
 func TestSelect(t *testing.T) {
@@ -65,8 +68,8 @@ func TestSelect(t *testing.T) {
 		t.Error(err)
 	}
 	defer db.Recover(&err)
-	for _, tp := range testParam[4:5] {
-		ret := templatedb.DBSelect[GoodShop](db).Select(tp.param, tp.name)
+	for _, tp := range testParam[len(testParam)-1:] {
+		ret := templatedb.DBSelect[[]int](db).Select(tp.param, tp.name)
 		for _, v := range ret {
 			fmt.Printf("%#v\n", v)
 		}
