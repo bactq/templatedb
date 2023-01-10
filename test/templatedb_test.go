@@ -64,11 +64,9 @@ func TestSelect(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	defer db.Recover(&err)
 	for _, tp := range testParam[4:5] {
-		ret, err := templatedb.DBSelect[GoodShop](db).Select(tp.param, tp.name)
-		if err != nil {
-			t.Error(err)
-		}
+		ret := templatedb.DBSelect[GoodShop](db).Select(tp.param, tp.name)
 		for _, v := range ret {
 			fmt.Printf("%#v\n", v)
 		}
@@ -93,11 +91,9 @@ func TestInFunction(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	defer db.Recover(&err)
 	for _, tp := range TestInFunctionParams {
-		ret, err := templatedb.DBSelect[GoodShop](db).Select(tp.param, tp.name)
-		if err != nil {
-			t.Error(err)
-		}
+		ret := templatedb.DBSelect[GoodShop](db).Select(tp.param, tp.name)
 		for _, v := range ret {
 			fmt.Printf("%#v\n", v)
 		}
@@ -155,12 +151,13 @@ func TestInsert(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	defer db.Recover(&err)
 	for _, tp := range TestInsertParams {
-		lastInsertId, rowsAffected, err := db.Exec(tp.param, tp.name)
-		if err != nil {
-			t.Error(err)
-		}
+		lastInsertId, rowsAffected := db.Exec(tp.param, tp.name)
 		fmt.Printf("lastInsertId:%d,rowsAffected:%d\n", lastInsertId, rowsAffected)
+	}
+	if err != nil {
+		t.Error(err)
 	}
 }
 
@@ -172,8 +169,11 @@ func TestInsertTx(t *testing.T) {
 	for _, tp := range TestInsertParams {
 		var txfunc = func() {
 			tx, err := db.Begin()
+			if err != nil {
+				t.Error(err)
+			}
 			defer tx.AutoCommit(&err)
-			lastInsertId, rowsAffected, err := tx.Exec(tp.param, TestInsert, tp.name)
+			lastInsertId, rowsAffected := tx.Exec(tp.param, TestInsert, tp.name)
 			if err != nil {
 				t.Error(err)
 			}
