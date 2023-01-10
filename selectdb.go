@@ -18,7 +18,7 @@ type SelectDB[T any] struct {
 	selectdb AnyDB
 }
 
-func newScanDest(columns []*sql.ColumnType, t reflect.Type) map[int][]int {
+func newScanDest(columns []*sql.ColumnType, t reflect.Type) []any {
 	indexMap := make(map[int][]int, len(columns))
 	for i, item := range columns {
 		if t.Kind() == reflect.Struct {
@@ -30,7 +30,25 @@ func newScanDest(columns []*sql.ColumnType, t reflect.Type) map[int][]int {
 			}
 		}
 	}
-	return indexMap
+	destSlice := make([]any, 0, len(columns))
+	if t.Kind() == reflect.Struct {
+		for si := range columns {
+			destSlice = append(destSlice, &util.StructScaner{Index: indexMap[si]})
+		}
+		return destSlice
+	} else if t.Kind() == reflect.Map && t.Key().Kind() == reflect.String {
+		for _, v := range columns {
+			destSlice = append(destSlice, &util.MapScaner{Name: v.Name()})
+		}
+		return destSlice
+	} else if t.Kind() == reflect.Slice {
+		for i := range columns {
+			destSlice = append(destSlice, &util.SliceScaner{Index: i})
+		}
+		return destSlice
+	} else {
+		return nil
+	}
 }
 
 func DBSelect[T any](db any) *SelectDB[T] {
@@ -43,32 +61,31 @@ func DBSelect[T any](db any) *SelectDB[T] {
 	return nil
 }
 
-func (sdb *SelectDB[T]) newReceiver(columns []*sql.ColumnType, scanIndex map[int][]int) (*T, []any) {
+func (sdb *SelectDB[T]) newReceiver(columns []*sql.ColumnType, scanRows []any) (*T, []any) {
 	t := reflect.TypeOf((*T)(nil)).Elem()
-	destSlice := make([]any, 0, len(columns))
 	if t.Kind() == reflect.Struct {
 		dest := new(T)
-		v := reflect.ValueOf(dest).Elem()
-		for si := range columns {
-			destSlice = append(destSlice, &util.StructScaner{Dest: v, Index: scanIndex[si]})
+		dv := reflect.ValueOf(dest).Elem()
+		for _, v := range scanRows {
+			v.(*util.StructScaner).Dest = dv
 		}
-		return dest, destSlice
+		return dest, scanRows
 	} else if t.Kind() == reflect.Map && t.Key().Kind() == reflect.String {
 		var ret *T = new(T)
 		dest := reflect.MakeMapWithSize(reflect.MapOf(t.Key(), t.Elem()), len(columns))
-		for _, v := range columns {
-			destSlice = append(destSlice, &util.MapScaner{Dest: dest, Name: v.Name()})
+		for _, v := range scanRows {
+			v.(*util.MapScaner).Dest = dest
 		}
 		*ret = dest.Interface().(T)
-		return ret, destSlice
+		return ret, scanRows
 	} else if t.Kind() == reflect.Slice {
 		var ret *T = new(T)
 		dest := reflect.MakeSlice(reflect.SliceOf(t.Elem()), len(columns), len(columns))
-		for i := range columns {
-			destSlice = append(destSlice, &util.SliceScaner{Dest: dest, Index: i})
+		for _, v := range scanRows {
+			v.(*util.SliceScaner).Dest = dest
 		}
 		*ret = dest.Interface().(T)
-		return ret, destSlice
+		return ret, scanRows
 	} else {
 		dest := new(T)
 		return dest, []any{dest}
