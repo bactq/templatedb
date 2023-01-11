@@ -25,7 +25,7 @@ type GoodShop struct {
 }
 
 func getDB() (*templatedb.DefaultDB, error) {
-	sqldb, err := sql.Open("mysql", "lix:lix@tcp(mysql.local.lezhichuyou.com:3306)/lz_tour?charset=utf8mb4&parseTime=True&loc=Local&multiStatements=true")
+	sqldb, err := sql.Open("mysql", "root:lz@3306!@tcp(mysql.local.lezhichuyou.com:3306)/lz_tour?charset=utf8mb4&parseTime=True&loc=Local&multiStatements=true")
 	if err != nil {
 		return nil, err
 	}
@@ -69,9 +69,9 @@ func TestSelect(t *testing.T) {
 	}
 	defer db.Recover(&err)
 	for _, tp := range testParam[len(testParam)-1:] {
-		ret := templatedb.DBSelect[GoodShop](db).Select(tp.param, tp.name)
+		ret := templatedb.DBSelect[int](db).Select(tp.param, tp.name)
 		for _, v := range ret {
-			fmt.Printf("%#v\n", v)
+			fmt.Printf("%#v\n", *v)
 		}
 	}
 }
@@ -183,5 +183,18 @@ func TestInsertTx(t *testing.T) {
 			fmt.Printf("lastInsertId:%d,rowsAffected:%d\n", lastInsertId, rowsAffected)
 		}
 		txfunc()
+	}
+}
+
+func TestFunc(t *testing.T) {
+	db, err := getDB()
+	if err != nil {
+		t.Error(err)
+	}
+	defer db.Recover(&err)
+	ret := templatedb.DBSelect[func() (int, string)](db).Select(nil, "func1")
+	for _, v := range ret {
+		id, name := (*v)()
+		fmt.Printf("%#v,%#v\n", id, name)
 	}
 }

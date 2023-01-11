@@ -53,4 +53,9 @@
         ({param .userId  .name .phone .introduction .avatar .image .status})  
         {end}
     </sql>
+
+
+    <sql func="TestFunc" name="func1" >
+        select userId,name from tbl_test
+    </sql>
 </root>

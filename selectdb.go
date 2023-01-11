@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/tianxinzizhen/templatedb/scaner"
 	"github.com/tianxinzizhen/templatedb/template"
-	"github.com/tianxinzizhen/templatedb/util"
 )
 
 type AnyDB interface {
@@ -33,21 +33,39 @@ func newScanDest(columns []*sql.ColumnType, t reflect.Type) []any {
 	destSlice := make([]any, 0, len(columns))
 	if t.Kind() == reflect.Struct {
 		for si := range columns {
-			destSlice = append(destSlice, &util.StructScaner{Index: indexMap[si]})
+			destSlice = append(destSlice, &scaner.StructScaner{Index: indexMap[si]})
 		}
 		return destSlice
-	} else if t.Kind() == reflect.Map && t.Key().Kind() == reflect.String {
+	} else if t.Kind() == reflect.Map {
+		if t.Key().Kind() != reflect.String {
+			panic("scan map key type not string")
+		}
 		for _, v := range columns {
-			destSlice = append(destSlice, &util.MapScaner{Name: v.Name()})
+			destSlice = append(destSlice, &scaner.MapScaner{Column: v, Name: v.Name()})
 		}
 		return destSlice
 	} else if t.Kind() == reflect.Slice {
-		for i := range columns {
-			destSlice = append(destSlice, &util.SliceScaner{Index: i})
+		for i, v := range columns {
+			destSlice = append(destSlice, &scaner.SliceScaner{Column: v, Index: i})
+		}
+		return destSlice
+	} else if t.Kind() == reflect.Func {
+		i := 0
+		for ; i < t.NumOut(); i++ {
+			destSlice = append(destSlice, &scaner.ParameterScaner{Column: columns[i]})
+		}
+		for ; i < len(columns); i++ {
+			destSlice = append(destSlice, reflect.New(columns[i].ScanType()).Interface())
 		}
 		return destSlice
 	} else {
-		return nil
+		if len(columns) > 0 {
+			destSlice = append(destSlice, &scaner.ParameterScaner{Column: columns[0]})
+			for i := 1; i < len(columns); i++ {
+				destSlice = append(destSlice, reflect.New(columns[i].ScanType()).Interface())
+			}
+		}
+		return destSlice
 	}
 }
 
@@ -67,14 +85,18 @@ func (sdb *SelectDB[T]) newReceiver(columns []*sql.ColumnType, scanRows []any) (
 		dest := new(T)
 		dv := reflect.ValueOf(dest).Elem()
 		for _, v := range scanRows {
-			v.(*util.StructScaner).Dest = dv
+			if vi, ok := v.(*scaner.StructScaner); ok {
+				vi.Dest = &dv
+			}
 		}
 		return dest, scanRows
 	} else if t.Kind() == reflect.Map && t.Key().Kind() == reflect.String {
 		var ret *T = new(T)
 		dest := reflect.MakeMapWithSize(reflect.MapOf(t.Key(), t.Elem()), len(columns))
 		for _, v := range scanRows {
-			v.(*util.MapScaner).Dest = dest
+			if vi, ok := v.(*scaner.MapScaner); ok {
+				vi.Dest = &dest
+			}
 		}
 		*ret = dest.Interface().(T)
 		return ret, scanRows
@@ -82,13 +104,37 @@ func (sdb *SelectDB[T]) newReceiver(columns []*sql.ColumnType, scanRows []any) (
 		var ret *T = new(T)
 		dest := reflect.MakeSlice(reflect.SliceOf(t.Elem()), len(columns), len(columns))
 		for _, v := range scanRows {
-			v.(*util.SliceScaner).Dest = dest
+			if vi, ok := v.(*scaner.SliceScaner); ok {
+				vi.Dest = &dest
+			}
 		}
 		*ret = dest.Interface().(T)
 		return ret, scanRows
+	} else if t.Kind() == reflect.Func {
+		var results []reflect.Value = make([]reflect.Value, 0, t.NumOut())
+		for i := 0; i < t.NumOut(); i++ {
+			results = append(results, reflect.New(t.Out(i)).Elem())
+		}
+		dest := reflect.MakeFunc(t, func([]reflect.Value) []reflect.Value {
+			return results
+		})
+		for i, v := range scanRows {
+			if vi, ok := v.(*scaner.ParameterScaner); ok {
+				vi.Dest = &results[i]
+			}
+		}
+		var ret *T = new(T)
+		*ret = dest.Interface().(T)
+		return ret, scanRows
 	} else {
-		dest := new(T)
-		return dest, []any{dest}
+		var ret *T = new(T)
+		dest := reflect.ValueOf(ret).Elem()
+		for _, v := range scanRows {
+			if vi, ok := v.(*scaner.ParameterScaner); ok {
+				vi.Dest = &dest
+			}
+		}
+		return ret, scanRows
 	}
 }
 
