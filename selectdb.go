@@ -18,6 +18,22 @@ type SelectDB[T any] struct {
 	selectdb AnyDB
 }
 
+var tempScanDest map[reflect.Type]any
+
+// 创建临时扫描字段
+func getTempScanDest(scanType reflect.Type) any {
+	if tempScanDest == nil {
+		tempScanDest = make(map[reflect.Type]any)
+	}
+	if dest, ok := tempScanDest[scanType]; !ok {
+		dest := reflect.New(scanType).Interface()
+		tempScanDest[scanType] = dest
+		return dest
+	} else {
+		return dest
+	}
+}
+
 func newScanDest(columns []*sql.ColumnType, t reflect.Type) []any {
 	indexMap := make(map[int][]int, len(columns))
 	for i, item := range columns {
@@ -55,14 +71,14 @@ func newScanDest(columns []*sql.ColumnType, t reflect.Type) []any {
 			destSlice = append(destSlice, &scaner.ParameterScaner{Column: columns[i]})
 		}
 		for ; i < len(columns); i++ {
-			destSlice = append(destSlice, reflect.New(columns[i].ScanType()).Interface())
+			destSlice = append(destSlice, getTempScanDest(columns[i].ScanType()))
 		}
 		return destSlice
 	} else {
 		if len(columns) > 0 {
 			destSlice = append(destSlice, &scaner.ParameterScaner{Column: columns[0]})
 			for i := 1; i < len(columns); i++ {
-				destSlice = append(destSlice, reflect.New(columns[i].ScanType()).Interface())
+				destSlice = append(destSlice, getTempScanDest(columns[i].ScanType()))
 			}
 		}
 		return destSlice

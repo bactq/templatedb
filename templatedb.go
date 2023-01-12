@@ -49,6 +49,32 @@ func LoadSqlOfXml(sqlDir embed.FS) func(*DefaultDB) error {
 	}
 }
 
+func LoadSqlOfBytes(xmlSql []byte) func(*DefaultDB) error {
+	return func(db *DefaultDB) error {
+		if db.template == nil {
+			db.template = make(map[string]*template.Template)
+		}
+		err := xml.LoadTemplateStatementsOfBytes(xmlSql, db.template, db.parse)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+}
+
+func LoadSqlOfString(xmlSql string) func(*DefaultDB) error {
+	return func(db *DefaultDB) error {
+		if db.template == nil {
+			db.template = make(map[string]*template.Template)
+		}
+		err := xml.LoadTemplateStatementsOfString(xmlSql, db.template, db.parse)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+}
+
 func NewDefaultDB(SqlDB *sql.DB, options ...func(*DefaultDB) error) (*DefaultDB, error) {
 	db := &DefaultDB{
 		sqlDB:      SqlDB,
