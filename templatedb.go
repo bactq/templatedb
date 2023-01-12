@@ -163,18 +163,22 @@ func (db *DefaultDB) selectScanFunc(tdb TemplateDB, params any, scanFunc any, na
 	}
 	if st.NumIn() == 1 {
 		t := st.In(0)
-		if t.Kind() != reflect.Pointer {
-			panic("parameter scanFunc In(0) Type is not Pointer")
+		sit := t
+		if t.Kind() == reflect.Pointer {
+			sit = t.Elem()
 		}
-		t = t.Elem()
-		dest := newScanDest(columns, t)
+		dest := newScanDest(columns, sit)
 		for rows.Next() {
-			receiver := newReceiver(t, columns, dest)
+			receiver := newReceiver(sit, columns, dest)
 			err = rows.Scan(dest...)
 			if err != nil {
 				panic(fmt.Errorf("%s->%s", statement, err))
 			}
-			reflect.ValueOf(scanFunc).Call([]reflect.Value{receiver})
+			if t.Kind() == reflect.Pointer {
+				reflect.ValueOf(scanFunc).Call([]reflect.Value{receiver})
+			} else {
+				reflect.ValueOf(scanFunc).Call([]reflect.Value{receiver.Elem()})
+			}
 		}
 	} else {
 		dest := newScanDest(columns, st)

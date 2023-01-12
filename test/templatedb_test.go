@@ -244,7 +244,7 @@ func TestQeryString1(t *testing.T) {
 func TestQeryStringMap(t *testing.T) {
 	db, err := getDB()
 	defer db.Recover(&err)
-	db.SelectScanFunc(nil, func(id int, name string) {
-		fmt.Printf("%#v,%#v\n", id, name)
+	db.SelectScanFunc(nil, func(item GoodShop) {
+		fmt.Printf("%#v\n", item)
 	}, "select UserId, Name FROM tbl_test")
 }
