@@ -14,10 +14,15 @@ import (
 	"github.com/tianxinzizhen/templatedb/template"
 )
 
+type TemplateDB interface {
+	Query(query string, args ...any) (*sql.Rows, error)
+	Exec(query string, args ...any) (sql.Result, error)
+}
 type DefaultDB struct {
 	sqlDB                   *sql.DB
 	template                map[string]*template.Template
 	delimsLeft, delimsRight string
+	tdb                     TemplateDB
 }
 
 func getSkipFuncName(skip int, name []any) string {
@@ -80,6 +85,7 @@ func NewDefaultDB(SqlDB *sql.DB, options ...func(*DefaultDB) error) (*DefaultDB,
 		sqlDB:      SqlDB,
 		template:   make(map[string]*template.Template),
 		delimsLeft: "{", delimsRight: "}",
+		tdb: SqlDB,
 	}
 	for _, fn := range options {
 		err := fn(db)
@@ -94,6 +100,7 @@ func (db *DefaultDB) Recover(err *error) {
 	e := recover()
 	if e != nil {
 		*err = e.(error)
+		panic(*err)
 	}
 }
 
@@ -127,13 +134,68 @@ func (db *DefaultDB) templateBuild(query string, params any) (sql string, args [
 	return templateSql.ExecuteBuilder(params)
 }
 
-func (db *DefaultDB) Exec(params any, name ...any) (lastInsertId, rowsAffected int) {
-	statement := getSkipFuncName(2, name)
+func (db *DefaultDB) query(tdb TemplateDB, statement string, params any) (*sql.Rows, []*sql.ColumnType, error) {
+	sql, args, err := db.templateBuild(statement, params)
+	if err != nil {
+		return nil, nil, err
+	}
+	rows, err := tdb.Query(sql, args...)
+	if err != nil {
+		return nil, nil, err
+	}
+	columns, err := rows.ColumnTypes()
+	if err != nil {
+		return nil, nil, err
+	}
+	return rows, columns, nil
+}
+
+func (db *DefaultDB) selectScanFunc(tdb TemplateDB, params any, scanFunc any, name []any) {
+	statement := getSkipFuncName(3, name)
+	rows, columns, err := db.query(tdb, statement, params)
+	if err != nil {
+		panic(fmt.Errorf("%s->%s", statement, err))
+	}
+	defer rows.Close()
+	st := reflect.TypeOf(scanFunc)
+	if st.Kind() != reflect.Func {
+		panic("parameter scanFunc is not function")
+	}
+	if st.NumIn() == 1 {
+		t := st.In(0)
+		if t.Kind() != reflect.Pointer {
+			panic("parameter scanFunc In(0) Type is not Pointer")
+		}
+		t = t.Elem()
+		dest := newScanDest(columns, t)
+		for rows.Next() {
+			receiver := newReceiver(t, columns, dest)
+			err = rows.Scan(dest...)
+			if err != nil {
+				panic(fmt.Errorf("%s->%s", statement, err))
+			}
+			reflect.ValueOf(scanFunc).Call([]reflect.Value{receiver})
+		}
+	} else {
+		dest := newScanDest(columns, st)
+		for rows.Next() {
+			receiver := newReceiver(st, columns, dest)
+			err = rows.Scan(dest...)
+			if err != nil {
+				panic(fmt.Errorf("%s->%s", statement, err))
+			}
+			reflect.ValueOf(scanFunc).Call(receiver.Interface().([]reflect.Value))
+		}
+	}
+}
+
+func (db *DefaultDB) exec(tdb TemplateDB, params any, name []any) (lastInsertId, rowsAffected int) {
+	statement := getSkipFuncName(3, name)
 	sql, args, err := db.templateBuild(statement, params)
 	if err != nil {
 		panic(fmt.Errorf("%s->%s", statement, err))
 	}
-	result, err := db.sqlDB.Exec(sql, args...)
+	result, err := tdb.Exec(sql, args...)
 	if err != nil {
 		panic(fmt.Errorf("%s->%s", statement, err))
 	}
@@ -147,13 +209,20 @@ func (db *DefaultDB) Exec(params any, name ...any) (lastInsertId, rowsAffected i
 	}
 	return int(lastid), int(affected)
 }
+func (db *DefaultDB) Exec(params any, name ...any) (lastInsertId, rowsAffected int) {
+	return db.exec(db.sqlDB, params, name)
+}
+
+func (db *DefaultDB) SelectScanFunc(params any, scanFunc any, name ...any) {
+	db.selectScanFunc(db.sqlDB, params, scanFunc, name)
+}
 
 func (db *DefaultDB) Begin() (*TemplateTxDB, error) {
 	tx, err := db.sqlDB.Begin()
 	if err != nil {
 		return nil, err
 	}
-	return &TemplateTxDB{db: db, tx: tx}, nil
+	return &TemplateTxDB{DefaultDB: db, tx: tx}, nil
 }
 
 func (db *DefaultDB) BeginTx(ctx context.Context, opts *sql.TxOptions) (*TemplateTxDB, error) {
@@ -161,11 +230,11 @@ func (db *DefaultDB) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Templat
 	if err != nil {
 		return nil, err
 	}
-	return &TemplateTxDB{db: db, tx: tx}, nil
+	return &TemplateTxDB{DefaultDB: db, tx: tx}, nil
 }
 
 type TemplateTxDB struct {
-	db *DefaultDB
+	*DefaultDB
 	tx *sql.Tx
 }
 
@@ -184,24 +253,7 @@ func (tx *TemplateTxDB) AutoCommit(err *error) {
 }
 
 func (tx *TemplateTxDB) Exec(params any, name ...any) (lastInsertId, rowsAffected int) {
-	statement := getSkipFuncName(2, name)
-	sql, args, err := tx.db.templateBuild(statement, params)
-	if err != nil {
-		panic(fmt.Errorf("%s->%s", statement, err))
-	}
-	result, err := tx.tx.Exec(sql, args...)
-	if err != nil {
-		panic(fmt.Errorf("%s->%s", statement, err))
-	}
-	lastid, err := result.LastInsertId()
-	if err != nil {
-		panic(fmt.Errorf("%s->%s", statement, err))
-	}
-	affected, err := result.RowsAffected()
-	if err != nil {
-		panic(fmt.Errorf("%s->%s", statement, err))
-	}
-	return int(lastid), int(affected)
+	return tx.exec(tx.tx, params, name)
 }
 
 func (tx *TemplateTxDB) PrepareExec(params []any, name ...any) (rowsAffected int) {
@@ -209,7 +261,7 @@ func (tx *TemplateTxDB) PrepareExec(params []any, name ...any) (rowsAffected int
 	var stmtMaps map[string]*sql.Stmt = make(map[string]*sql.Stmt)
 	var tempSql string
 	for _, param := range params {
-		execSql, args, err := tx.db.templateBuild(statement, param)
+		execSql, args, err := tx.templateBuild(statement, param)
 		if err != nil {
 			panic(fmt.Errorf("%s->%s", statement, err))
 		}
@@ -239,4 +291,8 @@ func (tx *TemplateTxDB) PrepareExec(params []any, name ...any) (rowsAffected int
 		rowsAffected += int(batchAffected)
 	}
 	return
+}
+
+func (tx *TemplateTxDB) SelectScanFunc(params any, scanFunc any, name ...any) {
+	tx.selectScanFunc(tx.tx, params, scanFunc, name)
 }
