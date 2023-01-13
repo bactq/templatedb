@@ -308,27 +308,16 @@ var SqlEscape func(arg any) (sql string, err error)
 
 func (s *state) evalAtSign(dot reflect.Value, node *parse.AtsignNode) {
 	receiver := s.varValue(node.Vars[len(node.Vars)-1])
-	fieldName := node.Text
-	isSqlEscape := false
-	isNull := false
-	if strings.HasPrefix(fieldName, "#") {
-		fieldName = strings.TrimPrefix(fieldName, "#")
-		isSqlEscape = true
-	}
-	if strings.HasSuffix(fieldName, "?") {
-		fieldName = strings.TrimSuffix(fieldName, "?")
-		isNull = true
-	}
-	val := s.evalField(dot, fieldName, node, nil, missingVal, receiver)
+	val := s.evalField(dot, node.Text, node, nil, missingVal, receiver)
 	arg := val.Interface()
-	if isNull {
+	if node.SuffixQuestionMark {
 		truth, _ := isTrue(val)
 		if !truth {
 			arg = nil
 		}
 	}
 	var ps = "?"
-	if isSqlEscape {
+	if node.PrefixPoundSign {
 		sqlParam, err := SqlEscape(arg)
 		if err != nil {
 			s.writeError(fmt.Errorf("evalAtSign sql escape:%s", err))
