@@ -319,7 +319,7 @@ func (s *state) evalAtSign(dot reflect.Value, node *parse.AtsignNode) {
 		}
 	}
 	var ps = "?"
-	if node.PrefixPoundSign {
+	if SqlEscape != nil && node.PrefixPoundSign {
 		sqlParam, err := SqlEscape(arg)
 		if err != nil {
 			s.writeError(fmt.Errorf("evalAtSign sql escape:%s", err))
@@ -663,7 +663,7 @@ func GetFieldByName(t reflect.Type, fieldName string) (f reflect.StructField, ok
 	}
 	for i := 0; i < t.NumField(); i++ {
 		tf := t.Field(i)
-		if TagAsFieldName(tf.Tag, fieldName) {
+		if TagAsFieldName != nil && TagAsFieldName(tf.Tag, fieldName) {
 			return tf, true
 		}
 	}
