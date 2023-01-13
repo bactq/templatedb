@@ -187,40 +187,28 @@ func TestInsertTx(t *testing.T) {
 	}
 }
 
-func funcExec() (err error) {
+func TestFunc(t *testing.T) {
 	db, err := getDB()
+	if err != nil {
+		t.Error(err)
+	}
 	defer db.Recover(&err)
 	ret := templatedb.DBSelect[func() (int, string)](db).Select(nil, TestSelect, "all")
 	for _, v := range ret {
 		id, name := (*v)()
 		fmt.Printf("%#v,%#v\n", id, name)
 	}
-	return
-}
-func TestFunc(t *testing.T) {
-	err := funcExec()
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func insertTime() (err error) {
-	db, err := getDB()
-	if err != nil {
-		return err
-	}
-	defer db.Recover(&err)
-	db.Exec(map[string]any{
-		"time": time.Time{},
-	})
-	return
 }
 
 func TestInsertTime(t *testing.T) {
-	err := insertTime()
+	db, err := getDB()
 	if err != nil {
 		t.Error(err)
 	}
+	defer db.Recover(&err)
+	db.Exec(map[string]any{
+		"userId": time.Time{},
+	})
 }
 
 func TestQeryString(t *testing.T) {

@@ -55,7 +55,7 @@
     </sql>
 
 
-    <sql func="insertTime" >
-        insert into tbl_test value ({orNull .time})
+    <sql func="TestInsertTime" >
+        insert into tbl_test(userId) value ({orNull .userId})
     </sql>
 </root>
