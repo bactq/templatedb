@@ -26,11 +26,11 @@ type GoodShop struct {
 }
 
 func getDB() (*templatedb.DefaultDB, error) {
-	sqldb, err := sql.Open("mysql", "root:lz@3306!@tcp(mysql.local.lezhichuyou.com:3306)/lz_tour_lix?charset=utf8mb4&parseTime=True&loc=Local&multiStatements=true")
+	sqldb, err := sql.Open("mysql", "lix:lix@tcp(mysql.local.lezhichuyou.com:3306)/lz_tour?charset=utf8mb4&parseTime=True&loc=Local&multiStatements=true")
 	if err != nil {
 		return nil, err
 	}
-	return templatedb.NewDefaultDB(sqldb, templatedb.LoadSqlOfXml(sqlDir), templatedb.RecoverPanic(true))
+	return templatedb.NewDefaultDB(sqldb, templatedb.LoadSqlOfXml(sqlDir))
 }
 
 func TestGetDb(t *testing.T) {
@@ -172,10 +172,7 @@ func TestInsertTx(t *testing.T) {
 	}
 	for _, tp := range TestInsertParams {
 		var txfunc = func() {
-			tx, err := db.Begin()
-			if err != nil {
-				t.Error(err)
-			}
+			tx := db.Begin()
 			defer tx.AutoCommit(&err)
 			lastInsertId, rowsAffected := tx.Exec(tp.param, TestInsert, tp.name)
 			if err != nil {
@@ -185,6 +182,25 @@ func TestInsertTx(t *testing.T) {
 		}
 		txfunc()
 	}
+}
+
+func TestTransaction(t *testing.T) {
+	db, err := getDB()
+	if err != nil {
+		t.Error(err)
+	}
+	defer db.Recover(&err)
+	for _, tp := range TestInsertParams {
+		err = db.Transaction(func(tx *templatedb.TemplateTxDB) error {
+			lastInsertId, rowsAffected := tx.Exec(tp.param, TestInsert, tp.name)
+			fmt.Printf("lastInsertId:%d,rowsAffected:%d\n", lastInsertId, rowsAffected)
+			return nil
+		})
+		if err != nil {
+			fmt.Println(err)
+		}
+	}
+
 }
 
 func TestFunc(t *testing.T) {

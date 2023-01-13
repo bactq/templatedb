@@ -32,7 +32,7 @@
     </sql>
 
     <sql func="TestInsert" name="insertOne" >
-        INSERT INTO tbl_test
+        INSERT INTO tbl_test1
         (userId, name, phone, introduction, avatar, image, status)
         VALUES(@userId, @name, @phone, @introduction, @avatar, @image, @status)       
     </sql>

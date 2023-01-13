@@ -1,6 +1,7 @@
 package templatedb
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"reflect"
@@ -10,16 +11,16 @@ import (
 )
 
 type SelectDB[T any] struct {
-	*DefaultDB
+	ActionDB
 	tdb TemplateDB
 }
 
 func DBSelect[T any](db any) *SelectDB[T] {
 	if db, ok := db.(*DefaultDB); ok {
-		return &SelectDB[T]{DefaultDB: db, tdb: db.sqlDB}
+		return &SelectDB[T]{ActionDB: db, tdb: db.sqlDB}
 	}
 	if db, ok := db.(*TemplateTxDB); ok {
-		return &SelectDB[T]{DefaultDB: db.DefaultDB, tdb: db.tx}
+		return &SelectDB[T]{ActionDB: db.ActionDB, tdb: db.tx}
 	}
 	return nil
 }
@@ -168,8 +169,10 @@ func newReceiver(t reflect.Type, columns []*sql.ColumnType, scanRows []any) refl
 }
 
 func (sdb *SelectDB[T]) Select(params any, name ...any) []*T {
-	statement := getSkipFuncName(2, name)
-	rows, columns, err := sdb.query(sdb.tdb, statement, params)
+	return sdb.SelectContext(context.Background(), params, name...)
+}
+func (sdb *SelectDB[T]) SelectContext(ctx context.Context, params any, name ...any) []*T {
+	rows, columns, statement, err := sdb.query(ctx, sdb.tdb, params, name)
 	if err != nil {
 		panic(fmt.Errorf("%s->%s", statement, err))
 	}
@@ -188,9 +191,11 @@ func (sdb *SelectDB[T]) Select(params any, name ...any) []*T {
 	return ret
 }
 
-func (sdb *SelectDB[T]) SelectFirst(params any, name ...any) *T {
-	statement := getSkipFuncName(2, name)
-	rows, columns, err := sdb.query(sdb.tdb, statement, params)
+func (sdb *SelectDB[T]) SelectFirst(ctx context.Context, params any, name ...any) *T {
+	return sdb.SelectFirstContext(context.Background(), params, name...)
+}
+func (sdb *SelectDB[T]) SelectFirstContext(ctx context.Context, params any, name ...any) *T {
+	rows, columns, statement, err := sdb.query(ctx, sdb.tdb, params, name)
 	if err != nil {
 		panic(fmt.Errorf("%s->%s", statement, err))
 	}
