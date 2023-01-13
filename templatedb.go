@@ -14,16 +14,6 @@ import (
 	"github.com/tianxinzizhen/templatedb/template"
 )
 
-var (
-	pkg          = "github.com/tianxinzizhen/templatedb"
-	skipFuncName = map[string]any{
-		fmt.Sprintf("%s.%s", pkg, "(*SelectDB[...]).Select"):         struct{}{},
-		fmt.Sprintf("%s.%s", pkg, "(*SelectDB[...]).SelectFirst"):    struct{}{},
-		fmt.Sprintf("%s.%s", pkg, "(*DefaultDB).Transaction"):        struct{}{},
-		fmt.Sprintf("%s.%s", pkg, "(*DefaultDB).TransactionContext"): struct{}{},
-	}
-)
-
 type TemplateDB interface {
 	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
 	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
@@ -31,22 +21,10 @@ type TemplateDB interface {
 }
 
 type ActionDB interface {
-	query(ctx context.Context, tdb TemplateDB, params any, name []any) (*sql.Rows, []*sql.ColumnType, string, error)
+	query(ctx context.Context, tdb TemplateDB, statement string, params any, name []any) (*sql.Rows, []*sql.ColumnType, error)
 	selectScanFunc(ctx context.Context, tdb TemplateDB, params any, scanFunc any, name []any)
 	exec(ctx context.Context, tdb TemplateDB, params any, name []any) (lastInsertId, rowsAffected int)
 	prepareExecContext(ctx context.Context, tdb TemplateDB, params []any, name []any) (rowsAffected int)
-}
-
-type templateError struct {
-	s string
-}
-
-func (e *templateError) Error() string {
-	return e.s
-}
-
-func errorf(format string, a ...any) error {
-	return &templateError{s: fmt.Sprintf(format, a...)}
 }
 
 type DefaultDB struct {
@@ -61,14 +39,9 @@ func getSkipFuncName(skip int, name []any) string {
 	if len(name) > 0 && reflect.TypeOf(name[0]).Kind() == reflect.Func {
 		return fmt.Sprintf("%s:%s", runtime.FuncForPC(reflect.ValueOf(name[0]).Pointer()).Name(), fmt.Sprint(name[1:]...))
 	}
-	for ; ; skip++ {
-		pc, _, _, _ := runtime.Caller(skip)
-		funcName := runtime.FuncForPC(pc).Name()
-		if _, ok := skipFuncName[funcName]; ok {
-			continue
-		}
-		return fmt.Sprintf("%s:%s", funcName, fmt.Sprint(name...))
-	}
+	pc, _, _, _ := runtime.Caller(skip)
+	funcName := runtime.FuncForPC(pc).Name()
+	return fmt.Sprintf("%s:%s", funcName, fmt.Sprint(name...))
 }
 
 func Delims(delimsLeft, delimsRight string) func(*DefaultDB) error {
@@ -180,44 +153,43 @@ func (db *DefaultDB) templateBuild(query string, params any) (sql string, args [
 	return templateSql.ExecuteBuilder(params)
 }
 
-func (db *DefaultDB) query(ctx context.Context, tdb TemplateDB, params any, name []any) (*sql.Rows, []*sql.ColumnType, string, error) {
-	statement := getSkipFuncName(3, name)
+func (db *DefaultDB) query(ctx context.Context, tdb TemplateDB, statement string, params any, name []any) (*sql.Rows, []*sql.ColumnType, error) {
 	sql, args, err := db.templateBuild(statement, params)
 	if err != nil {
-		return nil, nil, statement, err
+		return nil, nil, err
 	}
 	rows, err := tdb.QueryContext(ctx, sql, args...)
 	if err != nil {
-		return nil, nil, statement, err
+		return nil, nil, err
 	}
 	columns, err := rows.ColumnTypes()
 	if err != nil {
-		return nil, nil, statement, err
+		return nil, nil, err
 	}
-	return rows, columns, statement, nil
+	return rows, columns, nil
 }
 
 func (db *DefaultDB) selectScanFunc(ctx context.Context, tdb TemplateDB, params any, scanFunc any, name []any) {
 	statement := getSkipFuncName(3, name)
 	sql, args, err := db.templateBuild(statement, params)
 	if err != nil {
-		panic(errorf("%s->%s", statement, err))
+		panic(fmt.Errorf("%s->%s", statement, err))
 	}
 	rows, err := tdb.QueryContext(ctx, sql, args...)
 	if err != nil {
-		panic(errorf("%s->%s", statement, err))
+		panic(fmt.Errorf("%s->%s", statement, err))
 	}
 	defer rows.Close()
 	columns, err := rows.ColumnTypes()
 	if err != nil {
-		panic(errorf("%s->%s", statement, err))
+		panic(fmt.Errorf("%s->%s", statement, err))
 	}
 	if err != nil {
-		panic(errorf("%s->%s", statement, err))
+		panic(fmt.Errorf("%s->%s", statement, err))
 	}
 	st := reflect.TypeOf(scanFunc)
 	if st.Kind() != reflect.Func {
-		panic(errorf("parameter scanFunc is not function"))
+		panic(fmt.Errorf("parameter scanFunc is not function"))
 	}
 	if st.NumIn() == 1 {
 		t := st.In(0)
@@ -230,7 +202,7 @@ func (db *DefaultDB) selectScanFunc(ctx context.Context, tdb TemplateDB, params 
 			receiver := newReceiver(sit, columns, dest)
 			err = rows.Scan(dest...)
 			if err != nil {
-				panic(errorf("%s->%s", statement, err))
+				panic(fmt.Errorf("%s->%s", statement, err))
 			}
 			if t.Kind() == reflect.Pointer {
 				reflect.ValueOf(scanFunc).Call([]reflect.Value{receiver})
@@ -244,7 +216,7 @@ func (db *DefaultDB) selectScanFunc(ctx context.Context, tdb TemplateDB, params 
 			receiver := newReceiver(st, columns, dest)
 			err = rows.Scan(dest...)
 			if err != nil {
-				panic(errorf("%s->%s", statement, err))
+				panic(fmt.Errorf("%s->%s", statement, err))
 			}
 			reflect.ValueOf(scanFunc).Call(receiver.Interface().([]reflect.Value))
 		}
@@ -255,19 +227,19 @@ func (db *DefaultDB) exec(ctx context.Context, tdb TemplateDB, params any, name 
 	statement := getSkipFuncName(3, name)
 	tsql, args, err := db.templateBuild(statement, params)
 	if err != nil {
-		panic(errorf("%s->%s", statement, err))
+		panic(fmt.Errorf("%s->%s", statement, err))
 	}
 	result, err := tdb.ExecContext(ctx, tsql, args...)
 	if err != nil {
-		panic(errorf("%s->%s", statement, err))
+		panic(fmt.Errorf("%s->%s", statement, err))
 	}
 	lastid, err := result.LastInsertId()
 	if err != nil {
-		panic(errorf("%s->%s", statement, err))
+		panic(fmt.Errorf("%s->%s", statement, err))
 	}
 	affected, err := result.RowsAffected()
 	if err != nil {
-		panic(errorf("%s->%s", statement, err))
+		panic(fmt.Errorf("%s->%s", statement, err))
 	}
 	return int(lastid), int(affected)
 }
@@ -279,7 +251,7 @@ func (db *DefaultDB) prepareExecContext(ctx context.Context, tdb TemplateDB, par
 	for _, param := range params {
 		execSql, args, err := db.templateBuild(statement, param)
 		if err != nil {
-			panic(errorf("%s->%s", statement, err))
+			panic(fmt.Errorf("%s->%s", statement, err))
 		}
 		var stmt *sql.Stmt
 		if tempSql != execSql {
@@ -287,7 +259,7 @@ func (db *DefaultDB) prepareExecContext(ctx context.Context, tdb TemplateDB, par
 			if s, ok := stmtMaps[execSql]; !ok {
 				stmt, err = tdb.PrepareContext(ctx, execSql)
 				if err != nil {
-					panic(errorf("%s->%s", statement, err))
+					panic(fmt.Errorf("%s->%s", statement, err))
 				}
 				stmtMaps[execSql] = stmt
 			} else {
@@ -298,11 +270,11 @@ func (db *DefaultDB) prepareExecContext(ctx context.Context, tdb TemplateDB, par
 		}
 		result, err := stmt.ExecContext(ctx, args...)
 		if err != nil {
-			panic(errorf("%s->%s", statement, err))
+			panic(fmt.Errorf("%s->%s", statement, err))
 		}
 		batchAffected, err := result.RowsAffected()
 		if err != nil {
-			panic(errorf("%s->%s", statement, err))
+			panic(fmt.Errorf("%s->%s", statement, err))
 		}
 		rowsAffected += int(batchAffected)
 	}
