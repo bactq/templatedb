@@ -172,12 +172,12 @@ func TestInsertTx(t *testing.T) {
 	}
 	for _, tp := range TestInsertParams {
 		var txfunc = func() {
-			tx := db.Begin()
-			defer tx.AutoCommit(&err)
-			lastInsertId, rowsAffected := tx.Exec(tp.param, TestInsert, tp.name)
+			tx, err := db.Begin()
 			if err != nil {
 				t.Error(err)
 			}
+			defer tx.AutoCommit(&err)
+			lastInsertId, rowsAffected := tx.Exec(tp.param, TestInsert, tp.name)
 			fmt.Printf("lastInsertId:%d,rowsAffected:%d\n", lastInsertId, rowsAffected)
 		}
 		txfunc()
@@ -197,7 +197,7 @@ func TestTransaction(t *testing.T) {
 			return nil
 		})
 		if err != nil {
-			fmt.Println(err)
+			t.Error(err)
 		}
 	}
 

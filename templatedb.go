@@ -336,32 +336,33 @@ func (db *DefaultDB) Transaction(tf func(tx *TemplateTxDB) error) (err error) {
 }
 
 func (db *DefaultDB) TransactionContext(ctx context.Context, tf func(tx *TemplateTxDB) error) (err error) {
-	tx := db.Begin()
-	tx.recoverPanic = true
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
 	defer tx.AutoCommit(&err)
 	err = tf(tx)
 	if err != nil {
-		panic(errorf("Transaction function inner error:%s", err))
+		return err
 	}
 	return
 }
 
-func (db *DefaultDB) Begin() *TemplateTxDB {
+func (db *DefaultDB) Begin() (*TemplateTxDB, error) {
 	return db.BeginTx(context.Background(), nil)
 }
 
-func (db *DefaultDB) BeginTx(ctx context.Context, opts *sql.TxOptions) *TemplateTxDB {
+func (db *DefaultDB) BeginTx(ctx context.Context, opts *sql.TxOptions) (*TemplateTxDB, error) {
 	tx, err := db.sqlDB.BeginTx(ctx, opts)
 	if err != nil {
-		panic(errorf("BeginTx error :%s", err))
+		return nil, err
 	}
-	return &TemplateTxDB{ActionDB: db, tx: tx, recoverPanic: db.recoverPanic}
+	return &TemplateTxDB{ActionDB: db, tx: tx}, nil
 }
 
 type TemplateTxDB struct {
 	ActionDB
-	tx           *sql.Tx
-	recoverPanic bool
+	tx *sql.Tx
 }
 
 func (tx *TemplateTxDB) AutoCommit(err *error) {
@@ -372,9 +373,6 @@ func (tx *TemplateTxDB) AutoCommit(err *error) {
 		tx.tx.Rollback()
 	} else {
 		tx.tx.Commit()
-	}
-	if *err != nil && tx.recoverPanic {
-		panic(*err)
 	}
 }
 
