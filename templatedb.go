@@ -331,23 +331,6 @@ func (db *DefaultDB) SelectScanFuncContext(ctx context.Context, params any, scan
 	db.selectScanFunc(ctx, db.sqlDB, params, scanFunc, name)
 }
 
-func (db *DefaultDB) Transaction(tf func(tx *TemplateTxDB) error) (err error) {
-	return db.TransactionContext(context.Background(), tf)
-}
-
-func (db *DefaultDB) TransactionContext(ctx context.Context, tf func(tx *TemplateTxDB) error) (err error) {
-	tx, err := db.Begin()
-	if err != nil {
-		return err
-	}
-	defer tx.AutoCommit(&err)
-	err = tf(tx)
-	if err != nil {
-		return err
-	}
-	return
-}
-
 func (db *DefaultDB) Begin() (*TemplateTxDB, error) {
 	return db.BeginTx(context.Background(), nil)
 }

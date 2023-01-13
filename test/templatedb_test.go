@@ -184,25 +184,6 @@ func TestInsertTx(t *testing.T) {
 	}
 }
 
-func TestTransaction(t *testing.T) {
-	db, err := getDB()
-	if err != nil {
-		t.Error(err)
-	}
-	defer db.Recover(&err)
-	for _, tp := range TestInsertParams {
-		err = db.Transaction(func(tx *templatedb.TemplateTxDB) error {
-			lastInsertId, rowsAffected := tx.Exec(tp.param, TestInsert, tp.name)
-			fmt.Printf("lastInsertId:%d,rowsAffected:%d\n", lastInsertId, rowsAffected)
-			return nil
-		})
-		if err != nil {
-			t.Error(err)
-		}
-	}
-
-}
-
 func TestFunc(t *testing.T) {
 	db, err := getDB()
 	if err != nil {
