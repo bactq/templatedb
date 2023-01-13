@@ -6,6 +6,13 @@
 * 默认使用结构字段别名tag是：json
 更改字段别名函数: template.TagAsFieldName = JsonTagAsFieldName
 
+# 错误以panic触发
+* 如果要得到templatedb的错误信息请在开调用
+defer db.Recover(&err)  //注意：这里是输出错误参数的引用，传入其他错误对象将不能得到引用指针
+* 事务开启后有通过错误自动提交的方法：
+defer tx.AutoCommit(&err) //注意：同样是输出错误参数的引用
+
+
 # 如何使用
 查看文件test/sql/test_sql.xml,test/templatedb_test.go
 有几个例子看，前置需要对golang的模板熟悉。
