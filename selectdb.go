@@ -174,7 +174,7 @@ func (sdb *SelectDB[T]) Select(params any, name ...any) []*T {
 func (sdb *SelectDB[T]) SelectContext(ctx context.Context, params any, name ...any) []*T {
 	rows, columns, statement, err := sdb.query(ctx, sdb.tdb, params, name)
 	if err != nil {
-		panic(fmt.Errorf("%s->%s", statement, err))
+		panic(errorf("%s->%s", statement, err))
 	}
 	defer rows.Close()
 	t := reflect.TypeOf((*T)(nil)).Elem()
@@ -184,7 +184,7 @@ func (sdb *SelectDB[T]) SelectContext(ctx context.Context, params any, name ...a
 		receiver := newReceiver(t, columns, dest)
 		err = rows.Scan(dest...)
 		if err != nil {
-			panic(fmt.Errorf("%s->%s", statement, err))
+			panic(errorf("%s->%s", statement, err))
 		}
 		ret = append(ret, receiver.Interface().(*T))
 	}
@@ -197,7 +197,7 @@ func (sdb *SelectDB[T]) SelectFirst(ctx context.Context, params any, name ...any
 func (sdb *SelectDB[T]) SelectFirstContext(ctx context.Context, params any, name ...any) *T {
 	rows, columns, statement, err := sdb.query(ctx, sdb.tdb, params, name)
 	if err != nil {
-		panic(fmt.Errorf("%s->%s", statement, err))
+		panic(errorf("%s->%s", statement, err))
 	}
 	defer rows.Close()
 	t := reflect.TypeOf((*T)(nil)).Elem()
@@ -206,7 +206,7 @@ func (sdb *SelectDB[T]) SelectFirstContext(ctx context.Context, params any, name
 		receiver := newReceiver(t, columns, dest)
 		err = rows.Scan(dest...)
 		if err != nil {
-			panic(fmt.Errorf("%s->%s", statement, err))
+			panic(errorf("%s->%s", statement, err))
 		}
 		return receiver.Interface().(*T)
 	} else {

@@ -18,7 +18,7 @@ var SqlEscapeBytesBackslash = false
 func comma(iVal reflect.Value) (string, error) {
 	i, isNil := util.Indirect(iVal)
 	if isNil {
-		panic("comma sql function in paramter is nil")
+		return "", fmt.Errorf("comma sql function in paramter is nil")
 	}
 	var commaPrint bool
 	switch i.Kind() {
