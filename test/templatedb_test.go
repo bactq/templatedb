@@ -26,11 +26,11 @@ type GoodShop struct {
 }
 
 func getDB() (*templatedb.DefaultDB, error) {
-	sqldb, err := sql.Open("mysql", "lix:lix@tcp(mysql.local.lezhichuyou.com:3306)/lz_tour?charset=utf8mb4&parseTime=True&loc=Local&multiStatements=true")
+	sqldb, err := sql.Open("mysql", "root:lz@3306!@tcp(mysql.local.lezhichuyou.com:3306)/lz_tour_lix?charset=utf8mb4&parseTime=True&loc=Local&multiStatements=true")
 	if err != nil {
 		return nil, err
 	}
-	return templatedb.NewDefaultDB(sqldb, templatedb.LoadSqlOfXml(sqlDir))
+	return templatedb.NewDefaultDB(sqldb, templatedb.LoadSqlOfXml(sqlDir), templatedb.RecoverPanic(true))
 }
 
 func TestGetDb(t *testing.T) {
@@ -72,7 +72,7 @@ func TestSelect(t *testing.T) {
 	for _, tp := range testParam[len(testParam)-1:] {
 		ret := templatedb.DBSelect[[]any](db).Select(tp.param, tp.name)
 		for _, v := range ret {
-			fmt.Printf("%#v\n", *v)
+			fmt.Printf("%#v\n", v)
 		}
 	}
 }
@@ -247,4 +247,28 @@ func TestQeryStringMap(t *testing.T) {
 	db.SelectScanFunc(nil, func(item GoodShop) {
 		fmt.Printf("%#v\n", item)
 	}, "select UserId, Name FROM tbl_test")
+}
+
+func TestInsertPoundSign(t *testing.T) {
+	db, err := getDB()
+	defer db.Recover(&err)
+	_, af := db.Exec(GoodShop{}, `INSERT INTO tbl_test
+	(UserId, Name, Phone, Introduction, Avatar, Image, Status)
+	VALUES(@#UserId, @#Name, @#Phone, @#Introduction, @#Avatar, @#Image, @#Status);
+	`)
+	//该sql模版会把参数与sql字符串连接,不参数化执行,注意sql注入
+	//同函数sqlescape
+	fmt.Println(af)
+}
+
+func TestInsertPoundSignQuestionMark(t *testing.T) {
+	db, err := getDB()
+	defer db.Recover(&err)
+	_, af := db.Exec(GoodShop{}, `INSERT INTO tbl_test
+	(UserId, Name, Phone, Introduction, Avatar, Image, Status)
+	VALUES(@#UserId?, @#Name?, @#Phone?, @Introduction?, @Avatar?, @Image?, @Status?);
+	`)
+	//如果参数是零值,就会转化成null到数据库
+	//同函数orNull
+	fmt.Println(af)
 }
