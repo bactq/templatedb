@@ -23,6 +23,7 @@ type DefaultDB struct {
 	template                map[string]*template.Template
 	delimsLeft, delimsRight string
 	tdb                     TemplateDB
+	recoverPanic            bool
 }
 
 func getSkipFuncName(skip int, name []any) string {
@@ -34,10 +35,18 @@ func getSkipFuncName(skip int, name []any) string {
 	return fmt.Sprintf("%s:%s", funcName, fmt.Sprint(name...))
 }
 
-func Delims(delimsLeft, delimsRight string) func(*DefaultDB) {
-	return func(db *DefaultDB) {
+func Delims(delimsLeft, delimsRight string) func(*DefaultDB) error {
+	return func(db *DefaultDB) error {
 		db.delimsLeft = delimsLeft
 		db.delimsRight = delimsRight
+		return nil
+	}
+}
+
+func RecoverPanic(recoverPanic bool) func(*DefaultDB) error {
+	return func(db *DefaultDB) error {
+		db.recoverPanic = recoverPanic
+		return nil
 	}
 }
 
@@ -100,7 +109,9 @@ func (db *DefaultDB) Recover(err *error) {
 	e := recover()
 	if e != nil {
 		*err = e.(error)
-		panic(*err)
+		if db.recoverPanic {
+			panic(*err)
+		}
 	}
 }
 
@@ -253,6 +264,9 @@ func (tx *TemplateTxDB) AutoCommit(err *error) {
 		} else {
 			tx.tx.Commit()
 		}
+	}
+	if tx.recoverPanic {
+		panic(*err)
 	}
 }
 
