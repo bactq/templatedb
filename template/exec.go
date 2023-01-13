@@ -331,7 +331,7 @@ func (s *state) evalAtSign(dot reflect.Value, node *parse.AtsignNode) {
 	if isSqlEscape {
 		sqlParam, err := SqlEscape(arg)
 		if err != nil {
-			s.writeError(err)
+			s.writeError(fmt.Errorf("evalAtSign sql escape:%s", err))
 		}
 		ps = sqlParam
 	} else {
@@ -339,7 +339,7 @@ func (s *state) evalAtSign(dot reflect.Value, node *parse.AtsignNode) {
 	}
 	_, err := fmt.Fprint(s.wr, ps)
 	if err != nil {
-		s.writeError(err)
+		s.writeError(fmt.Errorf("evalAtSign output print:%s", err))
 	}
 }
 
