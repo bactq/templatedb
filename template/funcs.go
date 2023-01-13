@@ -117,9 +117,9 @@ func goodFunc(typ reflect.Type) bool {
 		return true
 	case typ.NumOut() == 2 && typ.Out(1) == errorType:
 		return true
-	case typ.NumOut() == 2 && typ.Out(1) == anySliceType:
+	case typ.NumOut() == 2 && (typ.Out(1) == anySliceType || typ.Out(1) == reflectValueType):
 		return true
-	case typ.NumOut() == 3 && typ.Out(1) == anySliceType && typ.Out(2) == errorType:
+	case typ.NumOut() == 3 && (typ.Out(1) == anySliceType || typ.Out(1) == reflectValueType) && typ.Out(2) == errorType:
 		return true
 	}
 	return false
