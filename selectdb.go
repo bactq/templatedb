@@ -11,16 +11,16 @@ import (
 )
 
 type SelectDB[T any] struct {
-	ActionDB
-	tdb TemplateDB
+	actionDB
+	sqldb sqlDB
 }
 
-func DBSelect[T any](db any) *SelectDB[T] {
+func DBSelect[T any](db TemplateDB) *SelectDB[T] {
 	if db, ok := db.(*DefaultDB); ok {
-		return &SelectDB[T]{ActionDB: db, tdb: db.sqlDB}
+		return &SelectDB[T]{actionDB: db, sqldb: db.sqlDB}
 	}
 	if db, ok := db.(*TemplateTxDB); ok {
-		return &SelectDB[T]{ActionDB: db.ActionDB, tdb: db.tx}
+		return &SelectDB[T]{actionDB: db.actionDB, sqldb: db.tx}
 	}
 	return nil
 }
@@ -49,7 +49,7 @@ func newScanDest(columns []*sql.ColumnType, t reflect.Type) []any {
 			if ok {
 				indexMap[i] = f.Index
 			} else {
-				panic(fmt.Sprintf("类型%v无法扫描字段：%s", t, item.Name()))
+				panic(fmt.Errorf("类型%v无法扫描字段：%s", t, item.Name()))
 			}
 		}
 	}
@@ -61,7 +61,7 @@ func newScanDest(columns []*sql.ColumnType, t reflect.Type) []any {
 		return destSlice
 	} else if t.Kind() == reflect.Map {
 		if t.Key().Kind() != reflect.String {
-			panic("scan map key type not string")
+			panic(fmt.Errorf("scan map key type not string"))
 		}
 		for _, v := range columns {
 			destSlice = append(destSlice, &scaner.MapScaner{Column: v, Name: v.Name()})
@@ -92,7 +92,7 @@ func newScanDest(columns []*sql.ColumnType, t reflect.Type) []any {
 			}
 			return destSlice
 		} else {
-			panic(fmt.Sprintf("scan func In(%d) Out(%d) not supported", t.NumIn(), t.NumOut()))
+			panic(fmt.Errorf("scan func In(%d) Out(%d) not supported", t.NumIn(), t.NumOut()))
 		}
 	} else {
 		if len(columns) > 0 {
@@ -177,7 +177,7 @@ func (sdb *SelectDB[T]) SelectContext(ctx context.Context, params any, name ...a
 
 func (sdb *SelectDB[T]) selectContextCommon(ctx context.Context, params any, name ...any) []*T {
 	statement := getSkipFuncName(3, name)
-	rows, columns, err := sdb.query(ctx, sdb.tdb, statement, params, name)
+	rows, columns, err := sdb.query(ctx, sdb.sqldb, statement, params, name)
 	if err != nil {
 		panic(fmt.Errorf("%s->%s", statement, err))
 	}
@@ -206,7 +206,7 @@ func (sdb *SelectDB[T]) SelectFirstContext(ctx context.Context, params any, name
 
 func (sdb *SelectDB[T]) selectFirstContextCommon(ctx context.Context, params any, name ...any) *T {
 	statement := getSkipFuncName(3, name)
-	rows, columns, err := sdb.query(ctx, sdb.tdb, statement, params, name)
+	rows, columns, err := sdb.query(ctx, sdb.sqldb, statement, params, name)
 	if err != nil {
 		panic(fmt.Errorf("%s->%s", statement, err))
 	}

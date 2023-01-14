@@ -92,7 +92,7 @@ func addValueFuncs(out map[string]reflect.Value, in FuncMap) {
 		}
 		v := reflect.ValueOf(fn)
 		if v.Kind() != reflect.Func {
-			panic("value for " + name + " not a function")
+			panic(fmt.Errorf("value for %q not a function", name))
 		}
 		if !goodFunc(v.Type()) {
 			panic(fmt.Errorf("can't install method/function %q with %d results", name, v.Type().NumOut()))
