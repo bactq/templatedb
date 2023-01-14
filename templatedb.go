@@ -47,6 +47,9 @@ func getSkipFuncName(skip int, name []any) string {
 	if len(name) > 0 && reflect.TypeOf(name[0]).Kind() == reflect.Func {
 		return fmt.Sprintf("%s:%s", runtime.FuncForPC(reflect.ValueOf(name[0]).Pointer()).Name(), fmt.Sprint(name[1:]...))
 	}
+	if len(name) > 1 && reflect.TypeOf(name[0]).Kind() == reflect.String {
+		return fmt.Sprintf("%s:%s", name[0], fmt.Sprint(name[1:]...))
+	}
 	pc, _, _, _ := runtime.Caller(skip)
 	funcName := runtime.FuncForPC(pc).Name()
 	return fmt.Sprintf("%s:%s", funcName, fmt.Sprint(name...))
