@@ -40,7 +40,7 @@ type DefaultDB struct {
 	sqlDB                   *sql.DB
 	template                map[string]*template.Template
 	delimsLeft, delimsRight string
-	recoverPanic            bool
+	recoverPrintf           func(format string, a ...any) (n int, err error)
 }
 
 func getSkipFuncName(skip int, name []any) string {
@@ -63,9 +63,9 @@ func Delims(delimsLeft, delimsRight string) func(*DefaultDB) error {
 	}
 }
 
-func RecoverPanic(recoverPanic bool) func(*DefaultDB) error {
+func RecoverPrintf(recoverPrintf func(format string, a ...any) (n int, err error)) func(*DefaultDB) error {
 	return func(db *DefaultDB) error {
-		db.recoverPanic = recoverPanic
+		db.recoverPrintf = recoverPrintf
 		return nil
 	}
 }
@@ -135,9 +135,15 @@ func (db *DefaultDB) Recover(errp *error) {
 				panic(e)
 			}
 		}
-	}
-	if *errp != nil && db.recoverPanic {
-		panic(*errp)
+		if db.recoverPrintf != nil {
+			var pc [2]uintptr
+			n := runtime.Callers(3, pc[:])
+			frames := runtime.CallersFrames(pc[:n])
+			frame, _ := frames.Next()
+			db.recoverPrintf("%s:%d: %s \n", frame.File, frame.Line, *errp)
+			frame, _ = frames.Next()
+			db.recoverPrintf("%s:%d \n", frame.File, frame.Line)
+		}
 	}
 }
 
@@ -202,9 +208,6 @@ func (db *DefaultDB) selectScanFunc(ctx context.Context, sdb sqlDB, params any, 
 	if err != nil {
 		panic(fmt.Errorf("%s->%s", statement, err))
 	}
-	if err != nil {
-		panic(fmt.Errorf("%s->%s", statement, err))
-	}
 	st := reflect.TypeOf(scanFunc)
 	if st.Kind() != reflect.Func {
 		panic(fmt.Errorf("parameter scanFunc is not function"))
@@ -239,6 +242,43 @@ func (db *DefaultDB) selectScanFunc(ctx context.Context, sdb sqlDB, params any, 
 			reflect.ValueOf(scanFunc).Call(receiver.Interface().([]reflect.Value))
 		}
 	}
+}
+
+func (db *DefaultDB) selectCommon(ctx context.Context, sdb sqlDB, params any, t reflect.Type, name []any) reflect.Value {
+	statement := getSkipFuncName(3, name)
+	sql, args, err := db.templateBuild(statement, params)
+	if err != nil {
+		panic(fmt.Errorf("%s->%s", statement, err))
+	}
+	rows, err := sdb.QueryContext(ctx, sql, args...)
+	if err != nil {
+		panic(fmt.Errorf("%s->%s", statement, err))
+	}
+	defer rows.Close()
+	columns, err := rows.ColumnTypes()
+	if err != nil {
+		panic(fmt.Errorf("%s->%s", statement, err))
+	}
+	dest := newScanDest(columns, t)
+	var ret reflect.Value
+	if t.Kind() == reflect.Slice {
+		ret = reflect.MakeSlice(t, 0, 10).Elem()
+	} else {
+		ret = reflect.New(t)
+	}
+	for rows.Next() {
+		receiver := newReceiver(t, columns, dest)
+		err = rows.Scan(dest...)
+		if err != nil {
+			panic(fmt.Errorf("%s->%s", statement, err))
+		}
+		if t.Kind() == reflect.Slice {
+			ret = reflect.Append(ret, receiver)
+		} else {
+			return receiver
+		}
+	}
+	return ret
 }
 
 func (db *DefaultDB) exec(ctx context.Context, sdb sqlDB, params any, name []any) (lastInsertId, rowsAffected int) {

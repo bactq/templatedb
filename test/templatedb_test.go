@@ -30,7 +30,7 @@ func getDB() (*templatedb.DefaultDB, error) {
 	if err != nil {
 		return nil, err
 	}
-	return templatedb.NewDefaultDB(sqldb, templatedb.LoadSqlOfXml(sqlDir))
+	return templatedb.NewDefaultDB(sqldb, templatedb.LoadSqlOfXml(sqlDir), templatedb.RecoverPrintf(fmt.Printf))
 }
 
 func TestGetDb(t *testing.T) {
