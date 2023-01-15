@@ -11,7 +11,7 @@ import (
 	"github.com/tianxinzizhen/templatedb"
 )
 
-//go:embed sql/*
+//go:embed sql
 var sqlDir embed.FS
 
 type GoodShop struct {

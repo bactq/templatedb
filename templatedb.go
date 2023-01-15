@@ -72,40 +72,46 @@ func RecoverPrintf(recoverPrintf func(format string, a ...any) (n int, err error
 	}
 }
 
-func LoadSqlOfXml(sqlDir embed.FS) func(*DefaultDB) error {
+func LoadSqlOfXml(sqlDirs ...embed.FS) func(*DefaultDB) error {
 	return func(db *DefaultDB) error {
 		if db.template == nil {
 			db.template = make(map[string]*template.Template)
 		}
-		err := xml.LoadTemplateStatements(sqlDir, db.template, db.parse)
-		if err != nil {
-			return err
+		for _, v := range sqlDirs {
+			err := xml.LoadTemplateStatements(v, db.template, db.parse)
+			if err != nil {
+				return err
+			}
 		}
 		return nil
 	}
 }
 
-func LoadSqlOfBytes(xmlSql []byte) func(*DefaultDB) error {
+func LoadSqlOfBytes(xmlSqls ...[]byte) func(*DefaultDB) error {
 	return func(db *DefaultDB) error {
 		if db.template == nil {
 			db.template = make(map[string]*template.Template)
 		}
-		err := xml.LoadTemplateStatementsOfBytes(xmlSql, db.template, db.parse)
-		if err != nil {
-			return err
+		for _, v := range xmlSqls {
+			err := xml.LoadTemplateStatementsOfBytes(v, db.template, db.parse)
+			if err != nil {
+				return err
+			}
 		}
 		return nil
 	}
 }
 
-func LoadSqlOfString(xmlSql string) func(*DefaultDB) error {
+func LoadSqlOfString(xmlSqls ...string) func(*DefaultDB) error {
 	return func(db *DefaultDB) error {
 		if db.template == nil {
 			db.template = make(map[string]*template.Template)
 		}
-		err := xml.LoadTemplateStatementsOfString(xmlSql, db.template, db.parse)
-		if err != nil {
-			return err
+		for _, v := range xmlSqls {
+			err := xml.LoadTemplateStatementsOfString(v, db.template, db.parse)
+			if err != nil {
+				return err
+			}
 		}
 		return nil
 	}
