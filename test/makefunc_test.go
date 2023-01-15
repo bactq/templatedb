@@ -15,7 +15,7 @@ type MTest struct {
 
 func TestMakeSelectFunc(t *testing.T) {
 	dest := &MTest{}
-	err := templatedb.InitMakeFunc(dest)
+	err := templatedb.DBFuncMake(dest)
 	if err != nil {
 		t.Error(err)
 	}
@@ -33,7 +33,7 @@ func TestMakeSelectFunc(t *testing.T) {
 
 func TestMakeExecFunc(t *testing.T) {
 	dest := &MTest{}
-	err := templatedb.InitMakeFunc(dest)
+	err := templatedb.DBFuncMake(dest)
 	if err != nil {
 		t.Error(err)
 	}
@@ -55,7 +55,7 @@ func TestMakeExecFunc(t *testing.T) {
 
 func TestMakePrepareExecFunc(t *testing.T) {
 	dest := &MTest{}
-	err := templatedb.InitMakeFunc(dest)
+	err := templatedb.DBFuncMake(dest)
 	if err != nil {
 		t.Error(err)
 	}

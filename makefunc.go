@@ -10,13 +10,12 @@ import (
 )
 
 var (
-	anyType        = reflect.TypeOf((*any)(nil)).Elem()
 	templateDBType = reflect.TypeOf((*TemplateDB)(nil)).Elem()
 	contextType    = reflect.TypeOf((*context.Context)(nil)).Elem()
 )
 
 // 自动初始化构造方法
-func InitMakeFunc(dbStruct any) error {
+func DBFuncMake(dbStruct any) error {
 	dv, isNil := util.Indirect(reflect.ValueOf(dbStruct))
 	if isNil {
 		return errors.New("InitMakeFunc In(0) is nil")
