@@ -25,6 +25,7 @@ type actionDB interface {
 	selectScanFunc(ctx context.Context, adb sqlDB, params any, scanFunc any, name []any)
 	exec(ctx context.Context, adb sqlDB, params any, name []any) (lastInsertId, rowsAffected int)
 	prepareExecContext(ctx context.Context, adb sqlDB, params []any, name []any) (rowsAffected int)
+	selectCommon(ctx context.Context, sdb sqlDB, params any, t reflect.Type, name []any) reflect.Value
 }
 
 type TemplateDB interface {
@@ -34,6 +35,7 @@ type TemplateDB interface {
 	PrepareExecContext(ctx context.Context, params []any, name ...any) (rowsAffected int)
 	SelectScanFunc(params any, scanFunc any, name ...any)
 	SelectScanFuncContext(ctx context.Context, params any, scanFunc any, name ...any)
+	selectByType(ctx context.Context, params any, t reflect.Type, name ...any) reflect.Value
 }
 
 type DefaultDB struct {
@@ -135,7 +137,7 @@ func (db *DefaultDB) Recover(errp *error) {
 				panic(e)
 			}
 		}
-		if db.recoverPrintf != nil {
+		if db.recoverPrintf != nil && *errp != nil {
 			var pc [2]uintptr
 			n := runtime.Callers(3, pc[:])
 			frames := runtime.CallersFrames(pc[:n])
@@ -259,15 +261,17 @@ func (db *DefaultDB) selectCommon(ctx context.Context, sdb sqlDB, params any, t 
 	if err != nil {
 		panic(fmt.Errorf("%s->%s", statement, err))
 	}
-	dest := newScanDest(columns, t)
 	var ret reflect.Value
+	st := t
 	if t.Kind() == reflect.Slice {
-		ret = reflect.MakeSlice(t, 0, 10).Elem()
+		ret = reflect.MakeSlice(t, 0, 10)
+		st = t.Elem()
 	} else {
 		ret = reflect.New(t)
 	}
+	dest := newScanDest(columns, st)
 	for rows.Next() {
-		receiver := newReceiver(t, columns, dest)
+		receiver := newReceiver(st, columns, dest)
 		err = rows.Scan(dest...)
 		if err != nil {
 			panic(fmt.Errorf("%s->%s", statement, err))
@@ -360,6 +364,9 @@ func (db *DefaultDB) SelectScanFunc(params any, scanFunc any, name ...any) {
 func (db *DefaultDB) SelectScanFuncContext(ctx context.Context, params any, scanFunc any, name ...any) {
 	db.selectScanFunc(ctx, db.sqlDB, params, scanFunc, name)
 }
+func (db *DefaultDB) selectByType(ctx context.Context, params any, t reflect.Type, name ...any) reflect.Value {
+	return db.selectCommon(ctx, db.sqlDB, params, t, name)
+}
 
 func (db *DefaultDB) Begin() (*TemplateTxDB, error) {
 	return db.BeginTx(context.Background(), nil)
@@ -418,4 +425,8 @@ func (tx *TemplateTxDB) SelectScanFunc(params any, scanFunc any, name ...any) {
 }
 func (tx *TemplateTxDB) SelectScanFuncContext(ctx context.Context, params any, scanFunc any, name ...any) {
 	tx.selectScanFunc(ctx, tx.tx, params, scanFunc, name)
+}
+
+func (tx *TemplateTxDB) selectByType(ctx context.Context, params any, t reflect.Type, name ...any) reflect.Value {
+	return tx.selectCommon(ctx, tx.tx, params, t, name)
 }

@@ -18,7 +18,7 @@
         select {include "clumns"} from tbl_test where name={param .name}
     </sql>
     <sql func="TestSelect" name="all">
-        select {include "clumns"} from tbl_test1 
+        select {include "clumns"} from tbl_test
     </sql>
 
     <sql func="TestInFunction" name="inints" >

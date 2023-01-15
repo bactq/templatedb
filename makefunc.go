@@ -57,15 +57,17 @@ func InitMakeFunc(dbStruct any) error {
 		if tdb, ok := dist.Tag.Lookup("tdb"); ok {
 			if len(tdb) > 0 {
 				if tdb[0] == '>' {
-
+					if dit.NumOut() > 2 {
+						return fmt.Errorf("InitMakeFunc[%s.%s] Field[%s] Func Out len > 2 of exec ", dt.PkgPath(), dt.Name(), dist.Name)
+					}
+					div.Set(makeExecFunc(dit, tdb[1:], fmt.Sprintf("%s.%s", dt.PkgPath(), dt.Name()), dist.Name))
 				} else if tdb[0] == '<' {
-					sf := reflect.MakeFunc(dit, func(args []reflect.Value) (results []reflect.Value) {
-
-						return nil
-					})
-					div.Set(sf)
+					if dit.NumOut() > 1 {
+						return fmt.Errorf("InitMakeFunc[%s.%s] Field[%s] Func Out len > 1 of select ", dt.PkgPath(), dt.Name(), dist.Name)
+					}
+					div.Set(makeSelectFunc(dit, fmt.Sprintf("%s.%s", dt.PkgPath(), dt.Name()), dist.Name))
 				} else {
-					return fmt.Errorf("InitMakeFunc[%s.%s] Field[%s] Func tag tdb[0] not '>' or '<'", dt.PkgPath(), dt.Name(), dist.Name)
+					return fmt.Errorf("InitMakeFunc[%s.%s] Field[%s] Func tag tdb[0] not '>' exec or '<' select ", dt.PkgPath(), dt.Name(), dist.Name)
 				}
 			} else {
 				return fmt.Errorf("InitMakeFunc[%s.%s] Field[%s] Func tdb tag format not correct", dt.PkgPath(), dt.Name(), dist.Name)
@@ -77,26 +79,95 @@ func InitMakeFunc(dbStruct any) error {
 	return nil
 }
 
-func makeSelectFunc(t reflect.Type) reflect.Value {
+func makeSelectFunc(t reflect.Type, pkg, fieldName string) reflect.Value {
 	return reflect.MakeFunc(t, func(args []reflect.Value) (results []reflect.Value) {
-		var context, tdb, param *reflect.Value
+		var ctx context.Context
+		var tdb TemplateDB
+		var param any
 		if t.NumIn() == 1 {
-			tdb = &args[0]
+			tdb = args[0].Interface().(TemplateDB)
 		}
 		if t.NumIn() == 2 {
 			if t.In(1).Implements(templateDBType) {
-				context = &args[0]
-				tdb = &args[1]
+				ctx = args[0].Interface().(context.Context)
+				tdb = args[1].Interface().(TemplateDB)
 			} else {
-				tdb = &args[0]
-				param = &args[1]
+				tdb = args[0].Interface().(TemplateDB)
+				param = args[1].Interface()
 			}
 		}
 		if t.NumIn() == 3 {
-			context = &args[0]
-			tdb = &args[2]
-			param = &args[3]
+			ctx = args[0].Interface().(context.Context)
+			tdb = args[1].Interface().(TemplateDB)
+			param = args[1].Interface()
 		}
-		return nil
+		if ctx == nil {
+			ctx = context.Background()
+		}
+		return []reflect.Value{tdb.selectByType(ctx, param, t.Out(0), pkg, fieldName)}
+	})
+}
+
+func makeExecFunc(t reflect.Type, actoin, pkg, fieldName string) reflect.Value {
+	return reflect.MakeFunc(t, func(args []reflect.Value) (results []reflect.Value) {
+		var ctx context.Context
+		var tdb TemplateDB
+		var param any
+		if t.NumIn() == 1 {
+			tdb = args[0].Interface().(TemplateDB)
+		}
+		if t.NumIn() == 2 {
+			if t.In(1).Implements(templateDBType) {
+				ctx = args[0].Interface().(context.Context)
+				tdb = args[1].Interface().(TemplateDB)
+			} else {
+				tdb = args[0].Interface().(TemplateDB)
+				param = args[1].Interface()
+			}
+		}
+		if t.NumIn() == 3 {
+			ctx = args[0].Interface().(context.Context)
+			tdb = args[1].Interface().(TemplateDB)
+			param = args[1].Interface()
+		}
+		if ctx == nil {
+			ctx = context.Background()
+		}
+		var lastInsertId, rowsAffected int
+		if len(actoin) > 0 && actoin[0] == '>' {
+			actoin = actoin[1:]
+			pv := reflect.ValueOf(param)
+			var pvs []any
+			if pv.IsValid() && (pv.Kind() == reflect.Slice || pv.Kind() == reflect.Array) {
+				for i := 0; i < pv.Len(); i++ {
+					pvs = append(pvs, pv.Index(i).Interface())
+				}
+			}
+			rowsAffected = tdb.PrepareExecContext(ctx, pvs, pkg, fieldName)
+		} else {
+			lastInsertId, rowsAffected = tdb.ExecContext(ctx, param, pkg, fieldName)
+		}
+		var ret []reflect.Value
+		for i := 0; i < t.NumOut(); i++ {
+			if len(actoin) > i && actoin[i] == 'a' {
+				ret = append(ret, reflect.ValueOf(rowsAffected))
+				continue
+			}
+			if len(actoin) > i && actoin[i] == 'l' {
+				ret = append(ret, reflect.ValueOf(lastInsertId))
+				continue
+			}
+		}
+		if len(ret) != t.NumOut() {
+			ret = nil
+			if t.NumOut() == 1 {
+				ret = append(ret, reflect.ValueOf(rowsAffected))
+			}
+			if t.NumOut() == 2 {
+				ret = append(ret, reflect.ValueOf(lastInsertId))
+				ret = append(ret, reflect.ValueOf(rowsAffected))
+			}
+		}
+		return ret
 	})
 }

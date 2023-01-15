@@ -42,6 +42,9 @@ func getTempScanDest(scanType reflect.Type) any {
 }
 
 func newScanDest(columns []*sql.ColumnType, t reflect.Type) []any {
+	if t.Kind() == reflect.Pointer {
+		t = t.Elem()
+	}
 	indexMap := make(map[int][]int, len(columns))
 	for i, item := range columns {
 		if t.Kind() == reflect.Struct {
@@ -105,7 +108,11 @@ func newScanDest(columns []*sql.ColumnType, t reflect.Type) []any {
 	}
 }
 
-func newReceiver(t reflect.Type, columns []*sql.ColumnType, scanRows []any) reflect.Value {
+func newReceiver(rt reflect.Type, columns []*sql.ColumnType, scanRows []any) reflect.Value {
+	t := rt
+	if rt.Kind() == reflect.Pointer {
+		t = t.Elem()
+	}
 	var ret reflect.Value = reflect.New(t)
 	if t.Kind() == reflect.Struct {
 		dv := ret.Elem()
@@ -165,7 +172,11 @@ func newReceiver(t reflect.Type, columns []*sql.ColumnType, scanRows []any) refl
 			}
 		}
 	}
-	return ret
+	if rt.Kind() == reflect.Pointer {
+		return ret
+	} else {
+		return ret.Elem()
+	}
 }
 
 func (sdb *SelectDB[T]) Select(params any, name ...any) []*T {
@@ -182,7 +193,7 @@ func (sdb *SelectDB[T]) selectContextCommon(ctx context.Context, params any, nam
 		panic(fmt.Errorf("%s->%s", statement, err))
 	}
 	defer rows.Close()
-	t := reflect.TypeOf((*T)(nil)).Elem()
+	t := reflect.TypeOf((*T)(nil))
 	dest := newScanDest(columns, t)
 	ret := *(new([]*T))
 	for rows.Next() {
@@ -211,7 +222,7 @@ func (sdb *SelectDB[T]) selectFirstContextCommon(ctx context.Context, params any
 		panic(fmt.Errorf("%s->%s", statement, err))
 	}
 	defer rows.Close()
-	t := reflect.TypeOf((*T)(nil)).Elem()
+	t := reflect.TypeOf((*T)(nil))
 	dest := newScanDest(columns, t)
 	if rows.Next() {
 		receiver := newReceiver(t, columns, dest)

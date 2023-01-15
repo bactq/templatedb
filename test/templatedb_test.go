@@ -70,7 +70,7 @@ func TestSelect(t *testing.T) {
 	}
 	defer db.Recover(&err)
 	for _, tp := range testParam[len(testParam)-1:] {
-		ret := templatedb.DBSelect[[]any](db).Select(tp.param, tp.name)
+		ret := templatedb.DBSelect[map[string]any](db).Select(tp.param, tp.name)
 		for _, v := range ret {
 			fmt.Printf("%#v\n", v)
 		}
