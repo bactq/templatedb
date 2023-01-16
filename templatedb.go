@@ -23,26 +23,27 @@ type sqlDB interface {
 type actionDB interface {
 	query(ctx context.Context, adb sqlDB, statement string, params any, name []any) (*sql.Rows, []*sql.ColumnType, error)
 	selectScanFunc(ctx context.Context, adb sqlDB, params any, scanFunc any, name []any)
-	exec(ctx context.Context, adb sqlDB, params any, name []any) (lastInsertId, rowsAffected int)
-	prepareExecContext(ctx context.Context, adb sqlDB, params []any, name []any) (rowsAffected int)
+	exec(ctx context.Context, adb sqlDB, params any, name []any) (lastInsertId, rowsAffected int64)
+	prepareExecContext(ctx context.Context, adb sqlDB, params []any, name []any) (rowsAffected int64)
 	selectCommon(ctx context.Context, sdb sqlDB, params any, t reflect.Type, name []any) reflect.Value
 }
 
 type TemplateDB interface {
-	Exec(params any, name ...any) (lastInsertId, rowsAffected int)
-	ExecContext(ctx context.Context, params any, name ...any) (lastInsertId, rowsAffected int)
-	PrepareExec(params []any, name ...any) (rowsAffected int)
-	PrepareExecContext(ctx context.Context, params []any, name ...any) (rowsAffected int)
+	Exec(params any, name ...any) (lastInsertId, rowsAffected int64)
+	ExecContext(ctx context.Context, params any, name ...any) (lastInsertId, rowsAffected int64)
+	PrepareExec(params []any, name ...any) (rowsAffected int64)
+	PrepareExecContext(ctx context.Context, params []any, name ...any) (rowsAffected int64)
 	SelectScanFunc(params any, scanFunc any, name ...any)
 	SelectScanFuncContext(ctx context.Context, params any, scanFunc any, name ...any)
 	selectByType(ctx context.Context, params any, t reflect.Type, name ...any) reflect.Value
 }
 
+var RecoverPrintf func(format string, a ...any) (n int, err error)
+
 type DefaultDB struct {
 	sqlDB                   *sql.DB
 	template                map[string]*template.Template
 	delimsLeft, delimsRight string
-	recoverPrintf           func(format string, a ...any) (n int, err error)
 }
 
 func getSkipFuncName(skip int, name []any) string {
@@ -61,13 +62,6 @@ func Delims(delimsLeft, delimsRight string) func(*DefaultDB) error {
 	return func(db *DefaultDB) error {
 		db.delimsLeft = delimsLeft
 		db.delimsRight = delimsRight
-		return nil
-	}
-}
-
-func RecoverPrintf(recoverPrintf func(format string, a ...any) (n int, err error)) func(*DefaultDB) error {
-	return func(db *DefaultDB) error {
-		db.recoverPrintf = recoverPrintf
 		return nil
 	}
 }
@@ -143,14 +137,14 @@ func (db *DefaultDB) Recover(errp *error) {
 				panic(e)
 			}
 		}
-		if db.recoverPrintf != nil && *errp != nil {
+		if RecoverPrintf != nil && *errp != nil {
 			var pc [2]uintptr
 			n := runtime.Callers(3, pc[:])
 			frames := runtime.CallersFrames(pc[:n])
 			frame, _ := frames.Next()
-			db.recoverPrintf("%s:%d: %s \n", frame.File, frame.Line, *errp)
+			RecoverPrintf("%s:%d: %s \n", frame.File, frame.Line, *errp)
 			frame, _ = frames.Next()
-			db.recoverPrintf("%s:%d \n", frame.File, frame.Line)
+			RecoverPrintf("%s:%d \n", frame.File, frame.Line)
 		}
 	}
 }
@@ -273,7 +267,7 @@ func (db *DefaultDB) selectCommon(ctx context.Context, sdb sqlDB, params any, t 
 		ret = reflect.MakeSlice(t, 0, 10)
 		st = t.Elem()
 	} else {
-		ret = reflect.New(t)
+		ret = reflect.New(t).Elem()
 	}
 	dest := newScanDest(columns, st)
 	for rows.Next() {
@@ -291,7 +285,7 @@ func (db *DefaultDB) selectCommon(ctx context.Context, sdb sqlDB, params any, t 
 	return ret
 }
 
-func (db *DefaultDB) exec(ctx context.Context, sdb sqlDB, params any, name []any) (lastInsertId, rowsAffected int) {
+func (db *DefaultDB) exec(ctx context.Context, sdb sqlDB, params any, name []any) (lastInsertId, rowsAffected int64) {
 	statement := getSkipFuncName(3, name)
 	tsql, args, err := db.templateBuild(statement, params)
 	if err != nil {
@@ -309,10 +303,10 @@ func (db *DefaultDB) exec(ctx context.Context, sdb sqlDB, params any, name []any
 	if err != nil {
 		panic(fmt.Errorf("%s->%s", statement, err))
 	}
-	return int(lastid), int(affected)
+	return lastid, affected
 }
 
-func (db *DefaultDB) prepareExecContext(ctx context.Context, sdb sqlDB, params []any, name []any) (rowsAffected int) {
+func (db *DefaultDB) prepareExecContext(ctx context.Context, sdb sqlDB, params []any, name []any) (rowsAffected int64) {
 	statement := getSkipFuncName(3, name)
 	var stmtMaps map[string]*sql.Stmt = make(map[string]*sql.Stmt)
 	var tempSql string
@@ -344,23 +338,23 @@ func (db *DefaultDB) prepareExecContext(ctx context.Context, sdb sqlDB, params [
 		if err != nil {
 			panic(fmt.Errorf("%s->%s", statement, err))
 		}
-		rowsAffected += int(batchAffected)
+		rowsAffected += batchAffected
 	}
 	return
 }
 
-func (db *DefaultDB) Exec(params any, name ...any) (lastInsertId, rowsAffected int) {
+func (db *DefaultDB) Exec(params any, name ...any) (lastInsertId, rowsAffected int64) {
 	return db.exec(context.Background(), db.sqlDB, params, name)
 }
 
-func (db *DefaultDB) ExecContext(ctx context.Context, params any, name ...any) (lastInsertId, rowsAffected int) {
+func (db *DefaultDB) ExecContext(ctx context.Context, params any, name ...any) (lastInsertId, rowsAffected int64) {
 	return db.exec(ctx, db.sqlDB, params, name)
 }
-func (db *DefaultDB) PrepareExec(params []any, name ...any) (rowsAffected int) {
+func (db *DefaultDB) PrepareExec(params []any, name ...any) (rowsAffected int64) {
 	return db.prepareExecContext(context.Background(), db.sqlDB, params, name)
 }
 
-func (db *DefaultDB) PrepareExecContext(ctx context.Context, params []any, name ...any) (rowsAffected int) {
+func (db *DefaultDB) PrepareExecContext(ctx context.Context, params []any, name ...any) (rowsAffected int64) {
 	return db.prepareExecContext(ctx, db.sqlDB, params, name)
 }
 
@@ -401,6 +395,15 @@ func (tx *TemplateTxDB) AutoCommit(errp *error) {
 			default:
 				panic(e)
 			}
+			if RecoverPrintf != nil && *errp != nil {
+				var pc [2]uintptr
+				n := runtime.Callers(3, pc[:])
+				frames := runtime.CallersFrames(pc[:n])
+				frame, _ := frames.Next()
+				RecoverPrintf("%s:%d: %s \n", frame.File, frame.Line, *errp)
+				frame, _ = frames.Next()
+				RecoverPrintf("%s:%d \n", frame.File, frame.Line)
+			}
 		}
 	}
 	if *errp != nil {
@@ -410,19 +413,19 @@ func (tx *TemplateTxDB) AutoCommit(errp *error) {
 	}
 }
 
-func (tx *TemplateTxDB) Exec(params any, name ...any) (lastInsertId, rowsAffected int) {
+func (tx *TemplateTxDB) Exec(params any, name ...any) (lastInsertId, rowsAffected int64) {
 	return tx.exec(context.Background(), tx.tx, params, name)
 }
 
-func (tx *TemplateTxDB) ExecContext(ctx context.Context, params any, name ...any) (lastInsertId, rowsAffected int) {
+func (tx *TemplateTxDB) ExecContext(ctx context.Context, params any, name ...any) (lastInsertId, rowsAffected int64) {
 	return tx.exec(ctx, tx.tx, params, name)
 }
 
-func (tx *TemplateTxDB) PrepareExec(params []any, name ...any) (rowsAffected int) {
+func (tx *TemplateTxDB) PrepareExec(params []any, name ...any) (rowsAffected int64) {
 	return tx.prepareExecContext(context.Background(), tx.tx, params, name)
 }
 
-func (tx *TemplateTxDB) PrepareExecContext(ctx context.Context, params []any, name ...any) (rowsAffected int) {
+func (tx *TemplateTxDB) PrepareExecContext(ctx context.Context, params []any, name ...any) (rowsAffected int64) {
 	return tx.prepareExecContext(ctx, tx.tx, params, name)
 }
 

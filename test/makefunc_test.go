@@ -8,45 +8,49 @@ import (
 )
 
 type MTest struct {
-	Select      func(templatedb.TemplateDB, map[string]any) *GoodShop `tdb:"<"`
-	Exec        func(templatedb.TemplateDB, []GoodShop) int           `tdb:">l"`
-	PrepareExec func(templatedb.TemplateDB, []GoodShop) int           `tdb:">>a"`
+	templatedb.TemplateDBFunc[MTest]
+	Select      func(map[string]any) []GoodShop
+	Exec        func([]GoodShop) templatedb.Result
+	PrepareExec func([]GoodShop) templatedb.PrepareResult
 }
 
 func TestMakeSelectFunc(t *testing.T) {
-	dest := &MTest{}
-	err := templatedb.DBFuncMake(dest)
-	if err != nil {
-		t.Error(err)
-	}
 	db, err := getDB()
 	if err != nil {
 		t.Error(err)
 	}
-	// for _, v := range dest.Select(db) {
-	// 	fmt.Printf("%#v", v)
-	// }
-	fmt.Printf("%#v", dest.Select(db, map[string]any{
-		"id": 59,
-	}))
+	dest := &MTest{}
+	err = templatedb.DBFuncMake(dest, db)
+	if err != nil {
+		t.Error(err)
+	}
+	defer dest.Recover(&err)
+	for _, v := range dest.Select(nil) {
+		fmt.Printf("%#v\n", v)
+	}
+	// fmt.Printf("%#v", dest.Select(db, map[string]any{
+	// 	"id": 1,
+	// }))
 }
 
 func TestMakeExecFunc(t *testing.T) {
-	dest := &MTest{}
-	err := templatedb.DBFuncMake(dest)
+	db, err := getDB()
 	if err != nil {
 		t.Error(err)
 	}
-	db, err := getDB()
+	dest := &MTest{}
+	err = templatedb.DBFuncMake(dest, db)
 	if err != nil {
 		t.Error(err)
 	}
 	defer db.Recover(&err)
-	a := dest.Exec(db, []GoodShop{{
+	dest, _ = dest.Begin()
+	defer dest.AutoCommit(&err)
+	a := dest.Exec([]GoodShop{{
 		Name:         "insertOne",
 		UserId:       2,
 		Phone:        "12345678910",
-		Introduction: "一些简单的介绍",
+		Introduction: "一些简单的介绍1",
 		Avatar:       "aa.jpg",
 		Image:        "bb.jpg",
 	}})
@@ -54,17 +58,17 @@ func TestMakeExecFunc(t *testing.T) {
 }
 
 func TestMakePrepareExecFunc(t *testing.T) {
-	dest := &MTest{}
-	err := templatedb.DBFuncMake(dest)
-	if err != nil {
-		t.Error(err)
-	}
 	db, err := getDB()
 	if err != nil {
 		t.Error(err)
 	}
+	dest := &MTest{}
+	err = templatedb.DBFuncMake(dest, db)
+	if err != nil {
+		t.Error(err)
+	}
 	defer db.Recover(&err)
-	a := dest.PrepareExec(db, []GoodShop{{
+	a := dest.PrepareExec([]GoodShop{{
 		Name:         "insertOne",
 		UserId:       2,
 		Phone:        "12345678910",

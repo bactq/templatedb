@@ -1,6 +1,6 @@
 <root pkg="github.com/tianxinzizhen/templatedb/test">
     <sql func="MTest" name="Select">
-        select * from tbl_test where id=@id
+        select * from tbl_test1 
     </sql>
     <sql func="MTest" name="Exec">
         INSERT INTO tbl_test

@@ -2,6 +2,7 @@ package templatedb
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"reflect"
@@ -10,13 +11,41 @@ import (
 )
 
 var (
-	templateDBType = reflect.TypeOf((*TemplateDB)(nil)).Elem()
-	contextType    = reflect.TypeOf((*context.Context)(nil)).Elem()
+	contextType       = reflect.TypeOf((*context.Context)(nil)).Elem()
+	ResultType        = reflect.TypeOf(Result{})
+	PrepareResultType = reflect.TypeOf(PrepareResult{})
 )
 
+type Operation int
+
+const (
+	ExecAction Operation = iota
+	PrepareAction
+	SelectAction
+	SelectScanAction
+	ExecNoResultAction
+)
+
+type TemplateDBFunc[T any] struct {
+	TemplateDB
+	Begin      func() (*T, error)
+	BeginTx    func(ctx context.Context, opts *sql.TxOptions) (*T, error)
+	AutoCommit func(errp *error)
+	Recover    func(errp *error)
+}
+
+type Result struct {
+	LastInsertId int64
+	RowsAffected int64
+}
+
+type PrepareResult struct {
+	RowsAffected int64
+}
+
 // 自动初始化构造方法
-func DBFuncMake(dbStruct any) error {
-	dv, isNil := util.Indirect(reflect.ValueOf(dbStruct))
+func DBFuncMake[T any](dbfuncStruct *T, tdb TemplateDB) error {
+	dv, isNil := util.Indirect(reflect.ValueOf(dbfuncStruct))
 	if isNil {
 		return errors.New("InitMakeFunc In(0) is nil")
 	}
@@ -24,117 +53,106 @@ func DBFuncMake(dbStruct any) error {
 	if dt.Kind() != reflect.Struct {
 		return errors.New("InitMakeFunc In(0) type is not struct")
 	}
+	if !dv.FieldByName("TemplateDBFunc").IsValid() {
+		return errors.New("strcut type need anonymous templatedb.TemplateDBFunc")
+	}
+	dv.FieldByName("Begin").Set(reflect.ValueOf(func() (*T, error) {
+		if db, ok := tdb.(*DefaultDB); ok {
+			tx, err := db.Begin()
+			if err != nil {
+				return nil, err
+			}
+			nt := new(T)
+			DBFuncMake(nt, tx)
+			return nt, nil
+		} else {
+			return nil, fmt.Errorf("Begin error: Currently in a transactional state")
+		}
+	}))
+	dv.FieldByName("BeginTx").Set(reflect.ValueOf(func(ctx context.Context, opts *sql.TxOptions) (*T, error) {
+		if db, ok := tdb.(*DefaultDB); ok {
+			tx, err := db.BeginTx(ctx, opts)
+			if err != nil {
+				return nil, err
+			}
+			nt := new(T)
+			DBFuncMake(nt, tx)
+			return nt, nil
+		} else {
+			return nil, fmt.Errorf("BeginTx error: Currently in a transactional state")
+		}
+	}))
+	if tx, ok := tdb.(*TemplateTxDB); ok {
+		dv.FieldByName("AutoCommit").Set(reflect.ValueOf(tx.AutoCommit))
+	} else {
+		dv.FieldByName("AutoCommit").Set(reflect.ValueOf(func(errp *error) {}))
+	}
+	if db, ok := tdb.(*DefaultDB); ok {
+		dv.FieldByName("Recover").Set(reflect.ValueOf(db.Recover))
+	} else {
+		dv.FieldByName("Recover").Set(reflect.ValueOf(func(errp *error) {}))
+	}
 	for i := 0; i < dt.NumField(); i++ {
 		dist := dt.Field(i)
 		dit := dist.Type
 		div := dv.Field(i)
-		if dit.Kind() != reflect.Func {
-			return fmt.Errorf("InitMakeFunc[%s.%s] Field[%s] type is not Func", dt.PkgPath(), dt.Name(), dist.Name)
-		}
-		//need judgment function in parameter type is correct
-		switch dit.NumIn() {
-		case 1:
-			if !(dit.In(0).Implements(templateDBType)) {
-				return fmt.Errorf("InitMakeFunc[%s.%s] Field[%s] Func In(0) types is Implements TemplateDB", dt.PkgPath(), dt.Name(), dist.Name)
+		if dit.Kind() == reflect.Func {
+			switch dit.NumIn() {
+			case 0, 1:
+			case 2:
+				if !(dit.In(0).Implements(contextType) || dit.In(1).Implements(contextType)) {
+					return fmt.Errorf("InitMakeFunc[%s.%s] Field[%s] Func In types is not correct", dt.PkgPath(), dt.Name(), dist.Name)
+				}
+			default:
+				return fmt.Errorf("InitMakeFunc[%s.%s] Field[%s] Func In type is not correct", dt.PkgPath(), dt.Name(), dist.Name)
 			}
-		case 2:
-			if !(dit.In(0).Implements(templateDBType) ||
-				(dit.In(0).Implements(contextType) && dit.In(1).Implements(templateDBType))) {
-				return fmt.Errorf("InitMakeFunc[%s.%s] Field[%s] Func In types is not correct", dt.PkgPath(), dt.Name(), dist.Name)
-			}
-		case 3:
-			if !dit.In(0).Implements(contextType) {
-				return fmt.Errorf("InitMakeFunc[%s.%s] Field[%s] Func In(0) type is not Implements context.Context", dt.PkgPath(), dt.Name(), dist.Name)
-			}
-			if !dit.In(1).Implements(templateDBType) {
-				return fmt.Errorf("InitMakeFunc[%s.%s] Field[%s] Func In(1) type is not Implements TemplateDB", dt.PkgPath(), dt.Name(), dist.Name)
-			}
-		default:
-			return fmt.Errorf("InitMakeFunc[%s.%s] Field[%s] Func in type is not correct", dt.PkgPath(), dt.Name(), dist.Name)
-		}
-		// select exec lastid affected
-		if tdb, ok := dist.Tag.Lookup("tdb"); ok {
-			if len(tdb) > 0 {
-				if tdb[0] == '>' {
-					if dit.NumOut() > 2 {
-						return fmt.Errorf("InitMakeFunc[%s.%s] Field[%s] Func Out len > 2 of exec ", dt.PkgPath(), dt.Name(), dist.Name)
-					}
-					div.Set(makeExecFunc(dit, tdb[1:], fmt.Sprintf("%s.%s", dt.PkgPath(), dt.Name()), dist.Name))
-				} else if tdb[0] == '<' {
-					if dit.NumOut() > 1 {
-						return fmt.Errorf("InitMakeFunc[%s.%s] Field[%s] Func Out len > 1 of select ", dt.PkgPath(), dt.Name(), dist.Name)
-					}
-					div.Set(makeSelectFunc(dit, fmt.Sprintf("%s.%s", dt.PkgPath(), dt.Name()), dist.Name))
+			if dit.NumOut() == 1 {
+				switch dit.Out(0) {
+				case ResultType:
+					div.Set(makeDBFunc(dit, tdb, ExecAction, fmt.Sprintf("%s.%s", dt.PkgPath(), dt.Name()), dist.Name))
+				case PrepareResultType:
+					div.Set(makeDBFunc(dit, tdb, PrepareAction, fmt.Sprintf("%s.%s", dt.PkgPath(), dt.Name()), dist.Name))
+				default:
+					div.Set(makeDBFunc(dit, tdb, SelectAction, fmt.Sprintf("%s.%s", dt.PkgPath(), dt.Name()), dist.Name))
+				}
+			} else if dit.NumOut() == 0 {
+				if dit.NumIn() > 0 && dit.In(dit.NumIn()-1).Kind() == reflect.Func {
+					div.Set(makeDBFunc(dit, tdb, SelectScanAction, fmt.Sprintf("%s.%s", dt.PkgPath(), dt.Name()), dist.Name))
 				} else {
-					return fmt.Errorf("InitMakeFunc[%s.%s] Field[%s] Func tag tdb[0] not '>' exec or '<' select ", dt.PkgPath(), dt.Name(), dist.Name)
+					div.Set(makeDBFunc(dit, tdb, ExecNoResultAction, fmt.Sprintf("%s.%s", dt.PkgPath(), dt.Name()), dist.Name))
 				}
 			} else {
-				return fmt.Errorf("InitMakeFunc[%s.%s] Field[%s] Func tdb tag format not correct", dt.PkgPath(), dt.Name(), dist.Name)
+				return fmt.Errorf("InitMakeFunc[%s.%s] Field[%s] Func In and Out type is not correct", dt.PkgPath(), dt.Name(), dist.Name)
 			}
-		} else {
-			return fmt.Errorf("InitMakeFunc[%s.%s] Field[%s] Func not set tdb tag", dt.PkgPath(), dt.Name(), dist.Name)
 		}
 	}
 	return nil
 }
 
-func makeSelectFunc(t reflect.Type, pkg, fieldName string) reflect.Value {
+func makeDBFunc(t reflect.Type, tdb TemplateDB, action Operation, pkg, fieldName string) reflect.Value {
 	return reflect.MakeFunc(t, func(args []reflect.Value) (results []reflect.Value) {
 		var ctx context.Context
-		var tdb TemplateDB
 		var param any
-		if t.NumIn() == 1 {
-			tdb = args[0].Interface().(TemplateDB)
-		}
-		if t.NumIn() == 2 {
-			if t.In(1).Implements(templateDBType) {
-				ctx = args[0].Interface().(context.Context)
-				tdb = args[1].Interface().(TemplateDB)
+		for _, v := range args {
+			if v.Type().Implements(contextType) {
+				ctx = v.Interface().(context.Context)
 			} else {
-				tdb = args[0].Interface().(TemplateDB)
-				param = args[1].Interface()
+				param = v.Interface()
 			}
-		}
-		if t.NumIn() == 3 {
-			ctx = args[0].Interface().(context.Context)
-			tdb = args[1].Interface().(TemplateDB)
-			param = args[1].Interface()
 		}
 		if ctx == nil {
 			ctx = context.Background()
 		}
-		return []reflect.Value{tdb.selectByType(ctx, param, t.Out(0), pkg, fieldName)}
-	})
-}
-
-func makeExecFunc(t reflect.Type, actoin, pkg, fieldName string) reflect.Value {
-	return reflect.MakeFunc(t, func(args []reflect.Value) (results []reflect.Value) {
-		var ctx context.Context
-		var tdb TemplateDB
-		var param any
-		if t.NumIn() == 1 {
-			tdb = args[0].Interface().(TemplateDB)
-		}
-		if t.NumIn() == 2 {
-			if t.In(1).Implements(templateDBType) {
-				ctx = args[0].Interface().(context.Context)
-				tdb = args[1].Interface().(TemplateDB)
+		switch action {
+		case ExecAction:
+			lastInsertId, rowsAffected := tdb.ExecContext(ctx, param, pkg, fieldName)
+			result := reflect.ValueOf(&Result{LastInsertId: lastInsertId, RowsAffected: rowsAffected})
+			if t.Out(0).Kind() == reflect.Pointer {
+				return []reflect.Value{result}
 			} else {
-				tdb = args[0].Interface().(TemplateDB)
-				param = args[1].Interface()
+				return []reflect.Value{result.Elem()}
 			}
-		}
-		if t.NumIn() == 3 {
-			ctx = args[0].Interface().(context.Context)
-			tdb = args[1].Interface().(TemplateDB)
-			param = args[1].Interface()
-		}
-		if ctx == nil {
-			ctx = context.Background()
-		}
-		var lastInsertId, rowsAffected int
-		if len(actoin) > 0 && actoin[0] == '>' {
-			actoin = actoin[1:]
+		case PrepareAction:
 			pv := reflect.ValueOf(param)
 			var pvs []any
 			if pv.IsValid() && (pv.Kind() == reflect.Slice || pv.Kind() == reflect.Array) {
@@ -142,31 +160,23 @@ func makeExecFunc(t reflect.Type, actoin, pkg, fieldName string) reflect.Value {
 					pvs = append(pvs, pv.Index(i).Interface())
 				}
 			}
-			rowsAffected = tdb.PrepareExecContext(ctx, pvs, pkg, fieldName)
-		} else {
-			lastInsertId, rowsAffected = tdb.ExecContext(ctx, param, pkg, fieldName)
+			rowsAffected := tdb.PrepareExecContext(ctx, pvs, pkg, fieldName)
+			prepareResult := reflect.ValueOf(&PrepareResult{RowsAffected: rowsAffected})
+			if t.Out(0).Kind() == reflect.Pointer {
+				return []reflect.Value{prepareResult}
+			} else {
+				return []reflect.Value{prepareResult.Elem()}
+			}
+		case SelectAction:
+			return []reflect.Value{tdb.selectByType(ctx, param, t.Out(0), pkg, fieldName)}
+		case SelectScanAction:
+			tdb.SelectScanFuncContext(ctx, param, param, pkg, fieldName)
+			return nil
+		case ExecNoResultAction:
+			tdb.ExecContext(ctx, param, pkg, fieldName)
+			return nil
+		default:
+			return nil
 		}
-		var ret []reflect.Value
-		for i := 0; i < t.NumOut(); i++ {
-			if len(actoin) > i && actoin[i] == 'a' {
-				ret = append(ret, reflect.ValueOf(rowsAffected))
-				continue
-			}
-			if len(actoin) > i && actoin[i] == 'l' {
-				ret = append(ret, reflect.ValueOf(lastInsertId))
-				continue
-			}
-		}
-		if len(ret) != t.NumOut() {
-			ret = nil
-			if t.NumOut() == 1 {
-				ret = append(ret, reflect.ValueOf(rowsAffected))
-			}
-			if t.NumOut() == 2 {
-				ret = append(ret, reflect.ValueOf(lastInsertId))
-				ret = append(ret, reflect.ValueOf(rowsAffected))
-			}
-		}
-		return ret
 	})
 }

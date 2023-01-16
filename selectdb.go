@@ -179,50 +179,50 @@ func newReceiver(rt reflect.Type, columns []*sql.ColumnType, scanRows []any) ref
 	}
 }
 
-func (sdb *SelectDB[T]) Select(params any, name ...any) []*T {
+func (sdb *SelectDB[T]) Select(params any, name ...any) []T {
 	return sdb.selectContextCommon(context.Background(), params, name...)
 }
-func (sdb *SelectDB[T]) SelectContext(ctx context.Context, params any, name ...any) []*T {
+func (sdb *SelectDB[T]) SelectContext(ctx context.Context, params any, name ...any) []T {
 	return sdb.selectContextCommon(ctx, params, name...)
 }
 
-func (sdb *SelectDB[T]) selectContextCommon(ctx context.Context, params any, name ...any) []*T {
+func (sdb *SelectDB[T]) selectContextCommon(ctx context.Context, params any, name ...any) []T {
 	statement := getSkipFuncName(3, name)
 	rows, columns, err := sdb.query(ctx, sdb.sqldb, statement, params, name)
 	if err != nil {
 		panic(fmt.Errorf("%s->%s", statement, err))
 	}
 	defer rows.Close()
-	t := reflect.TypeOf((*T)(nil))
+	t := reflect.TypeOf((*T)(nil)).Elem()
 	dest := newScanDest(columns, t)
-	ret := *(new([]*T))
+	ret := *(new([]T))
 	for rows.Next() {
 		receiver := newReceiver(t, columns, dest)
 		err = rows.Scan(dest...)
 		if err != nil {
 			panic(fmt.Errorf("%s->%s", statement, err))
 		}
-		ret = append(ret, receiver.Interface().(*T))
+		ret = append(ret, receiver.Interface().(T))
 	}
 	return ret
 }
 
-func (sdb *SelectDB[T]) SelectFirst(ctx context.Context, params any, name ...any) *T {
+func (sdb *SelectDB[T]) SelectFirst(params any, name ...any) T {
 	return sdb.selectFirstContextCommon(context.Background(), params, name...)
 }
 
-func (sdb *SelectDB[T]) SelectFirstContext(ctx context.Context, params any, name ...any) *T {
+func (sdb *SelectDB[T]) SelectFirstContext(ctx context.Context, params any, name ...any) T {
 	return sdb.selectFirstContextCommon(ctx, params, name...)
 }
 
-func (sdb *SelectDB[T]) selectFirstContextCommon(ctx context.Context, params any, name ...any) *T {
+func (sdb *SelectDB[T]) selectFirstContextCommon(ctx context.Context, params any, name ...any) (ret T) {
 	statement := getSkipFuncName(3, name)
 	rows, columns, err := sdb.query(ctx, sdb.sqldb, statement, params, name)
 	if err != nil {
 		panic(fmt.Errorf("%s->%s", statement, err))
 	}
 	defer rows.Close()
-	t := reflect.TypeOf((*T)(nil))
+	t := reflect.TypeOf((*T)(nil)).Elem()
 	dest := newScanDest(columns, t)
 	if rows.Next() {
 		receiver := newReceiver(t, columns, dest)
@@ -230,8 +230,7 @@ func (sdb *SelectDB[T]) selectFirstContextCommon(ctx context.Context, params any
 		if err != nil {
 			panic(fmt.Errorf("%s->%s", statement, err))
 		}
-		return receiver.Interface().(*T)
-	} else {
-		return nil
+		return receiver.Interface().(T)
 	}
+	return
 }
