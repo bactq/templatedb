@@ -96,15 +96,6 @@ func DBFuncInit[T any](dbfuncStruct *T, tdb TemplateDB) error {
 		dit := dist.Type
 		div := dv.Field(i)
 		if dit.Kind() == reflect.Func {
-			switch dit.NumIn() {
-			case 0, 1:
-			case 2:
-				if !(dit.In(0).Implements(contextType) || dit.In(1).Implements(contextType)) {
-					return fmt.Errorf("InitMakeFunc[%s.%s] Field[%s] Func In types is not correct", dt.PkgPath(), dt.Name(), dist.Name)
-				}
-			default:
-				return fmt.Errorf("InitMakeFunc[%s.%s] Field[%s] Func In type is not correct", dt.PkgPath(), dt.Name(), dist.Name)
-			}
 			if dit.NumOut() == 1 {
 				switch dit.Out(0) {
 				case ResultType:
@@ -131,10 +122,12 @@ func DBFuncInit[T any](dbfuncStruct *T, tdb TemplateDB) error {
 func makeDBFunc(t reflect.Type, tdb TemplateDB, action Operation, pkg, fieldName string) reflect.Value {
 	return reflect.MakeFunc(t, func(args []reflect.Value) (results []reflect.Value) {
 		var ctx context.Context
-		var param any
+		var param, scanFunc any
 		for _, v := range args {
 			if v.Type().Implements(contextType) {
 				ctx = v.Interface().(context.Context)
+			} else if v.Type().Kind() == reflect.Func {
+				scanFunc = v.Interface()
 			} else {
 				param = v.Interface()
 			}
@@ -169,7 +162,7 @@ func makeDBFunc(t reflect.Type, tdb TemplateDB, action Operation, pkg, fieldName
 		case SelectAction:
 			return []reflect.Value{tdb.selectByType(ctx, param, t.Out(0), pkg, fieldName)}
 		case SelectScanAction:
-			tdb.SelectScanFuncContext(ctx, param, param, pkg, fieldName)
+			tdb.SelectScanFuncContext(ctx, param, scanFunc, pkg, fieldName)
 			return nil
 		case ExecNoResultAction:
 			tdb.ExecContext(ctx, param, pkg, fieldName)
