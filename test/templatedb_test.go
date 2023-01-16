@@ -193,7 +193,7 @@ func TestFunc(t *testing.T) {
 	defer db.Recover(&err)
 	ret := templatedb.DBSelect[func() (int, string)](db).Select(nil, TestSelect, "all")
 	for _, v := range ret {
-		id, name := (*v)()
+		id, name := v()
 		fmt.Printf("%#v,%#v\n", id, name)
 	}
 }
@@ -214,7 +214,7 @@ func TestQeryString(t *testing.T) {
 	defer db.Recover(&err)
 	ret := templatedb.DBSelect[func() (int, string)](db).Select(nil, "select UserId, Name FROM tbl_test")
 	for _, v := range ret {
-		id, name := (*v)()
+		id, name := v()
 		fmt.Printf("%#v,%#v\n", id, name)
 	}
 }
