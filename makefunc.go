@@ -26,8 +26,7 @@ const (
 	ExecNoResultAction
 )
 
-type TemplateDBFunc[T any] struct {
-	TemplateDB
+type DBFunc[T any] struct {
 	Begin      func() (*T, error)
 	BeginTx    func(ctx context.Context, opts *sql.TxOptions) (*T, error)
 	AutoCommit func(errp *error)
@@ -44,7 +43,7 @@ type PrepareResult struct {
 }
 
 // 自动初始化构造方法
-func DBFuncMake[T any](dbfuncStruct *T, tdb TemplateDB) error {
+func DBFuncInit[T any](dbfuncStruct *T, tdb TemplateDB) error {
 	dv, isNil := util.Indirect(reflect.ValueOf(dbfuncStruct))
 	if isNil {
 		return errors.New("InitMakeFunc In(0) is nil")
@@ -63,7 +62,7 @@ func DBFuncMake[T any](dbfuncStruct *T, tdb TemplateDB) error {
 				return nil, err
 			}
 			nt := new(T)
-			DBFuncMake(nt, tx)
+			DBFuncInit(nt, tx)
 			return nt, nil
 		} else {
 			return nil, fmt.Errorf("Begin error: Currently in a transactional state")
@@ -76,7 +75,7 @@ func DBFuncMake[T any](dbfuncStruct *T, tdb TemplateDB) error {
 				return nil, err
 			}
 			nt := new(T)
-			DBFuncMake(nt, tx)
+			DBFuncInit(nt, tx)
 			return nt, nil
 		} else {
 			return nil, fmt.Errorf("BeginTx error: Currently in a transactional state")

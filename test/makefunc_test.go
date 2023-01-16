@@ -1,6 +1,7 @@
 package test
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -8,8 +9,8 @@ import (
 )
 
 type MTest struct {
-	templatedb.TemplateDBFunc[MTest]
-	Select      func(map[string]any) []GoodShop
+	templatedb.DBFunc[MTest]
+	Select      func(map[string]any, context.Context) []GoodShop
 	Exec        func([]GoodShop) templatedb.Result
 	PrepareExec func([]GoodShop) templatedb.PrepareResult
 }
@@ -20,12 +21,12 @@ func TestMakeSelectFunc(t *testing.T) {
 		t.Error(err)
 	}
 	dest := &MTest{}
-	err = templatedb.DBFuncMake(dest, db)
+	err = templatedb.DBFuncInit(dest, db)
 	if err != nil {
 		t.Error(err)
 	}
 	defer dest.Recover(&err)
-	for _, v := range dest.Select(nil) {
+	for _, v := range dest.Select(nil, context.Background()) {
 		fmt.Printf("%#v\n", v)
 	}
 	// fmt.Printf("%#v", dest.Select(db, map[string]any{
@@ -39,7 +40,7 @@ func TestMakeExecFunc(t *testing.T) {
 		t.Error(err)
 	}
 	dest := &MTest{}
-	err = templatedb.DBFuncMake(dest, db)
+	err = templatedb.DBFuncInit(dest, db)
 	if err != nil {
 		t.Error(err)
 	}
@@ -63,7 +64,7 @@ func TestMakePrepareExecFunc(t *testing.T) {
 		t.Error(err)
 	}
 	dest := &MTest{}
-	err = templatedb.DBFuncMake(dest, db)
+	err = templatedb.DBFuncInit(dest, db)
 	if err != nil {
 		t.Error(err)
 	}
