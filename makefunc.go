@@ -52,8 +52,8 @@ func DBFuncInit[T any](dbfuncStruct *T, tdb TemplateDB) error {
 	if dt.Kind() != reflect.Struct {
 		return errors.New("InitMakeFunc In(0) type is not struct")
 	}
-	if !dv.FieldByName("TemplateDBFunc").IsValid() {
-		return errors.New("strcut type need anonymous templatedb.TemplateDBFunc")
+	if !dv.FieldByName("DBFunc").IsValid() {
+		return errors.New("strcut type need anonymous templatedb.DBFunc")
 	}
 	dv.FieldByName("Begin").Set(reflect.ValueOf(func() (*T, error) {
 		if db, ok := tdb.(*DefaultDB); ok {
