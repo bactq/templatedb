@@ -96,6 +96,9 @@ func DBFuncInit[T any](dbfuncStruct *T, tdb TemplateDB) error {
 		dit := dist.Type
 		div := dv.Field(i)
 		if dit.Kind() == reflect.Func {
+			if dit.NumIn() > 3 {
+				return fmt.Errorf("InitMakeFunc[%s.%s] Field[%s] Func In Len >3", dt.PkgPath(), dt.Name(), dist.Name)
+			}
 			if dit.NumOut() == 1 {
 				switch dit.Out(0) {
 				case ResultType:
