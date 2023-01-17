@@ -201,16 +201,16 @@ func (db *DefaultDB) selectScanFunc(ctx context.Context, sdb sqlDB, params any, 
 	statement := getSkipFuncName(3, name)
 	sql, args, err := db.templateBuild(statement, params)
 	if err != nil {
-		panic(fmt.Errorf("%s->%s", statement, err))
+		panic(err)
 	}
 	rows, err := sdb.QueryContext(ctx, sql, args...)
 	if err != nil {
-		panic(fmt.Errorf("%s->%s", statement, err))
+		panic(err)
 	}
 	defer rows.Close()
 	columns, err := rows.ColumnTypes()
 	if err != nil {
-		panic(fmt.Errorf("%s->%s", statement, err))
+		panic(err)
 	}
 	st := reflect.TypeOf(scanFunc)
 	if st.Kind() != reflect.Func {
@@ -227,7 +227,7 @@ func (db *DefaultDB) selectScanFunc(ctx context.Context, sdb sqlDB, params any, 
 			receiver := newReceiver(sit, columns, dest)
 			err = rows.Scan(dest...)
 			if err != nil {
-				panic(fmt.Errorf("%s->%s", statement, err))
+				panic(err)
 			}
 			if t.Kind() == reflect.Pointer {
 				reflect.ValueOf(scanFunc).Call([]reflect.Value{receiver})
@@ -241,7 +241,7 @@ func (db *DefaultDB) selectScanFunc(ctx context.Context, sdb sqlDB, params any, 
 			receiver := newReceiver(st, columns, dest)
 			err = rows.Scan(dest...)
 			if err != nil {
-				panic(fmt.Errorf("%s->%s", statement, err))
+				panic(err)
 			}
 			reflect.ValueOf(scanFunc).Call(receiver.Interface().([]reflect.Value))
 		}
@@ -252,16 +252,16 @@ func (db *DefaultDB) selectCommon(ctx context.Context, sdb sqlDB, params any, t 
 	statement := getSkipFuncName(3, name)
 	sql, args, err := db.templateBuild(statement, params)
 	if err != nil {
-		panic(fmt.Errorf("%s->%s", statement, err))
+		panic(err)
 	}
 	rows, err := sdb.QueryContext(ctx, sql, args...)
 	if err != nil {
-		panic(fmt.Errorf("%s->%s", statement, err))
+		panic(err)
 	}
 	defer rows.Close()
 	columns, err := rows.ColumnTypes()
 	if err != nil {
-		panic(fmt.Errorf("%s->%s", statement, err))
+		panic(err)
 	}
 	var ret reflect.Value
 	st := t
@@ -276,7 +276,7 @@ func (db *DefaultDB) selectCommon(ctx context.Context, sdb sqlDB, params any, t 
 		receiver := newReceiver(st, columns, dest)
 		err = rows.Scan(dest...)
 		if err != nil {
-			panic(fmt.Errorf("%s->%s", statement, err))
+			panic(err)
 		}
 		if t.Kind() == reflect.Slice {
 			ret = reflect.Append(ret, receiver)
@@ -291,19 +291,19 @@ func (db *DefaultDB) exec(ctx context.Context, sdb sqlDB, params any, name []any
 	statement := getSkipFuncName(3, name)
 	tsql, args, err := db.templateBuild(statement, params)
 	if err != nil {
-		panic(fmt.Errorf("%s->%s", statement, err))
+		panic(err)
 	}
 	result, err := sdb.ExecContext(ctx, tsql, args...)
 	if err != nil {
-		panic(fmt.Errorf("%s->%s", statement, err))
+		panic(err)
 	}
 	lastid, err := result.LastInsertId()
 	if err != nil {
-		panic(fmt.Errorf("%s->%s", statement, err))
+		panic(err)
 	}
 	affected, err := result.RowsAffected()
 	if err != nil {
-		panic(fmt.Errorf("%s->%s", statement, err))
+		panic(err)
 	}
 	return lastid, affected
 }
@@ -315,7 +315,7 @@ func (db *DefaultDB) prepareExecContext(ctx context.Context, sdb sqlDB, params [
 	for _, param := range params {
 		execSql, args, err := db.templateBuild(statement, param)
 		if err != nil {
-			panic(fmt.Errorf("%s->%s", statement, err))
+			panic(err)
 		}
 		var stmt *sql.Stmt
 		if tempSql != execSql {
@@ -323,7 +323,7 @@ func (db *DefaultDB) prepareExecContext(ctx context.Context, sdb sqlDB, params [
 			if s, ok := stmtMaps[execSql]; !ok {
 				stmt, err = sdb.PrepareContext(ctx, execSql)
 				if err != nil {
-					panic(fmt.Errorf("%s->%s", statement, err))
+					panic(err)
 				}
 				stmtMaps[execSql] = stmt
 			} else {
@@ -334,11 +334,11 @@ func (db *DefaultDB) prepareExecContext(ctx context.Context, sdb sqlDB, params [
 		}
 		result, err := stmt.ExecContext(ctx, args...)
 		if err != nil {
-			panic(fmt.Errorf("%s->%s", statement, err))
+			panic(err)
 		}
 		batchAffected, err := result.RowsAffected()
 		if err != nil {
-			panic(fmt.Errorf("%s->%s", statement, err))
+			panic(err)
 		}
 		rowsAffected += batchAffected
 	}

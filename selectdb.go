@@ -190,7 +190,7 @@ func (sdb *SelectDB[T]) selectContextCommon(ctx context.Context, params any, nam
 	statement := getSkipFuncName(3, name)
 	rows, columns, err := sdb.query(ctx, sdb.sqldb, statement, params, name)
 	if err != nil {
-		panic(fmt.Errorf("%s->%s", statement, err))
+		panic(err)
 	}
 	defer rows.Close()
 	t := reflect.TypeOf((*T)(nil)).Elem()
@@ -200,7 +200,7 @@ func (sdb *SelectDB[T]) selectContextCommon(ctx context.Context, params any, nam
 		receiver := newReceiver(t, columns, dest)
 		err = rows.Scan(dest...)
 		if err != nil {
-			panic(fmt.Errorf("%s->%s", statement, err))
+			panic(err)
 		}
 		ret = append(ret, receiver.Interface().(T))
 	}
@@ -219,7 +219,7 @@ func (sdb *SelectDB[T]) selectFirstContextCommon(ctx context.Context, params any
 	statement := getSkipFuncName(3, name)
 	rows, columns, err := sdb.query(ctx, sdb.sqldb, statement, params, name)
 	if err != nil {
-		panic(fmt.Errorf("%s->%s", statement, err))
+		panic(err)
 	}
 	defer rows.Close()
 	t := reflect.TypeOf((*T)(nil)).Elem()
@@ -228,7 +228,7 @@ func (sdb *SelectDB[T]) selectFirstContextCommon(ctx context.Context, params any
 		receiver := newReceiver(t, columns, dest)
 		err = rows.Scan(dest...)
 		if err != nil {
-			panic(fmt.Errorf("%s->%s", statement, err))
+			panic(err)
 		}
 		return receiver.Interface().(T)
 	}
