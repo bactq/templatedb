@@ -11,7 +11,7 @@ import (
 type MTest struct {
 	templatedb.DBFunc[MTest]
 	Select            func(map[string]any, context.Context) ([]GoodShop, error)
-	Exec              func([]GoodShop) templatedb.Result
+	Exec              func([]GoodShop) (templatedb.Result, error)
 	ExecNoResult      func([]GoodShop)
 	ExecNoResultError func([]GoodShop) error
 	PrepareExec       func([]GoodShop) templatedb.PrepareResult
@@ -53,7 +53,7 @@ func TestMakeExecFunc(t *testing.T) {
 	defer db.Recover(&err)
 	dest, _ = dest.Begin()
 	defer dest.AutoCommit(&err)
-	a := dest.Exec([]GoodShop{{
+	a, err := dest.Exec([]GoodShop{{
 		Name:         "insertOne",
 		UserId:       2,
 		Phone:        "12345678910",
@@ -62,6 +62,7 @@ func TestMakeExecFunc(t *testing.T) {
 		Image:        "bb.jpg",
 	}})
 	fmt.Println(a)
+	fmt.Println(err)
 }
 
 func TestMakeExecFuncNoResult(t *testing.T) {
