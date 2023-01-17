@@ -43,17 +43,17 @@ type PrepareResult struct {
 }
 
 // 自动初始化构造方法
-func DBFuncInit[T any](dbfuncStruct *T, tdb TemplateDB) error {
+func DBFuncInit[T any](dbfuncStruct *T, tdb TemplateDB) (*T, error) {
 	dv, isNil := util.Indirect(reflect.ValueOf(dbfuncStruct))
 	if isNil {
-		return errors.New("InitMakeFunc In(0) is nil")
+		return nil, errors.New("InitMakeFunc In(0) is nil")
 	}
 	dt := dv.Type()
 	if dt.Kind() != reflect.Struct {
-		return errors.New("InitMakeFunc In(0) type is not struct")
+		return nil, errors.New("InitMakeFunc In(0) type is not struct")
 	}
 	if !dv.FieldByName("DBFunc").IsValid() {
-		return errors.New("strcut type need anonymous templatedb.DBFunc")
+		return nil, errors.New("strcut type need anonymous templatedb.DBFunc")
 	}
 	dv.FieldByName("Begin").Set(reflect.ValueOf(func() (*T, error) {
 		if db, ok := tdb.(*DefaultDB); ok {
@@ -97,7 +97,7 @@ func DBFuncInit[T any](dbfuncStruct *T, tdb TemplateDB) error {
 		div := dv.Field(i)
 		if dit.Kind() == reflect.Func {
 			if dit.NumIn() > 3 {
-				return fmt.Errorf("InitMakeFunc[%s.%s] Field[%s] Func In Len >3", dt.PkgPath(), dt.Name(), dist.Name)
+				return nil, fmt.Errorf("InitMakeFunc[%s.%s] Field[%s] Func In Len >3", dt.PkgPath(), dt.Name(), dist.Name)
 			}
 			if dit.NumOut() == 1 {
 				switch dit.Out(0) {
@@ -115,11 +115,11 @@ func DBFuncInit[T any](dbfuncStruct *T, tdb TemplateDB) error {
 					div.Set(makeDBFunc(dit, tdb, ExecNoResultAction, fmt.Sprintf("%s.%s", dt.PkgPath(), dt.Name()), dist.Name))
 				}
 			} else {
-				return fmt.Errorf("InitMakeFunc[%s.%s] Field[%s] Func In and Out type is not correct", dt.PkgPath(), dt.Name(), dist.Name)
+				return nil, fmt.Errorf("InitMakeFunc[%s.%s] Field[%s] Func In and Out type is not correct", dt.PkgPath(), dt.Name(), dist.Name)
 			}
 		}
 	}
-	return nil
+	return dbfuncStruct, nil
 }
 
 func makeDBFunc(t reflect.Type, tdb TemplateDB, action Operation, pkg, fieldName string) reflect.Value {
