@@ -11,9 +11,12 @@ import (
 )
 
 var (
-	contextType       = reflect.TypeOf((*context.Context)(nil)).Elem()
-	ResultType        = reflect.TypeOf(Result{})
-	PrepareResultType = reflect.TypeOf(PrepareResult{})
+	contextType        = reflect.TypeOf((*context.Context)(nil)).Elem()
+	errorType          = reflect.TypeOf((*error)(nil)).Elem()
+	PresultType        = reflect.TypeOf((*Result)(nil))
+	PprepareResultType = reflect.TypeOf((*PrepareResult)(nil))
+	ResultType         = PresultType.Elem()
+	PrepareResultType  = PprepareResultType.Elem()
 )
 
 type Operation int
@@ -99,14 +102,25 @@ func DBFuncInit[T any](dbfuncStruct *T, tdb TemplateDB) (*T, error) {
 			if dit.NumIn() > 3 {
 				return nil, fmt.Errorf("InitMakeFunc[%s.%s] Field[%s] Func In Len >3", dt.PkgPath(), dt.Name(), dist.Name)
 			}
-			if dit.NumOut() == 1 {
+			if dit.NumOut() == 1 || dit.NumOut() == 2 {
 				switch dit.Out(0) {
-				case ResultType:
+				case ResultType, PresultType:
 					div.Set(makeDBFunc(dit, tdb, ExecAction, fmt.Sprintf("%s.%s", dt.PkgPath(), dt.Name()), dist.Name))
-				case PrepareResultType:
+				case PrepareResultType, PprepareResultType:
 					div.Set(makeDBFunc(dit, tdb, PrepareAction, fmt.Sprintf("%s.%s", dt.PkgPath(), dt.Name()), dist.Name))
 				default:
-					div.Set(makeDBFunc(dit, tdb, SelectAction, fmt.Sprintf("%s.%s", dt.PkgPath(), dt.Name()), dist.Name))
+					if dit.Out(0).Implements(errorType) {
+						if dit.NumIn() > 0 && dit.In(dit.NumIn()-1).Kind() == reflect.Func {
+							div.Set(makeDBFunc(dit, tdb, SelectScanAction, fmt.Sprintf("%s.%s", dt.PkgPath(), dt.Name()), dist.Name))
+						} else {
+							div.Set(makeDBFunc(dit, tdb, ExecNoResultAction, fmt.Sprintf("%s.%s", dt.PkgPath(), dt.Name()), dist.Name))
+						}
+					} else {
+						if dit.NumOut() == 2 && !dit.Out(1).Implements(errorType) {
+							return nil, fmt.Errorf("InitMakeFunc[%s.%s] Field[%s] Func Out type is not correct", dt.PkgPath(), dt.Name(), dist.Name)
+						}
+						div.Set(makeDBFunc(dit, tdb, SelectAction, fmt.Sprintf("%s.%s", dt.PkgPath(), dt.Name()), dist.Name))
+					}
 				}
 			} else if dit.NumOut() == 0 {
 				if dit.NumIn() > 0 && dit.In(dit.NumIn()-1).Kind() == reflect.Func {
@@ -138,14 +152,35 @@ func makeDBFunc(t reflect.Type, tdb TemplateDB, action Operation, pkg, fieldName
 		if ctx == nil {
 			ctx = context.Background()
 		}
+		results = make([]reflect.Value, t.NumOut())
+		if t.NumOut() == 2 || (t.NumOut() == 1 && t.Out(0).Implements(errorType)) {
+			defer func() {
+				e := recover()
+				if e != nil {
+					switch rerr := e.(type) {
+					case error:
+						if t.NumOut() == 2 {
+							results[0] = reflect.New(t.Out(0)).Elem()
+						}
+						results[len(results)-1] = reflect.ValueOf(rerr)
+						recoverPrintf(rerr)
+					default:
+						panic(e)
+					}
+				}
+			}()
+			results[len(results)-1] = reflect.New(errorType).Elem()
+		}
 		switch action {
 		case ExecAction:
 			lastInsertId, rowsAffected := tdb.ExecContext(ctx, param, pkg, fieldName)
 			result := reflect.ValueOf(&Result{LastInsertId: lastInsertId, RowsAffected: rowsAffected})
-			if t.Out(0).Kind() == reflect.Pointer {
-				return []reflect.Value{result}
-			} else {
-				return []reflect.Value{result.Elem()}
+			if t.Out(0) == ResultType || t.Out(0) == PresultType {
+				if t.Out(0).Kind() == reflect.Pointer {
+					results[0] = result
+				} else {
+					results[0] = result.Elem()
+				}
 			}
 		case PrepareAction:
 			pv := reflect.ValueOf(param)
@@ -157,21 +192,20 @@ func makeDBFunc(t reflect.Type, tdb TemplateDB, action Operation, pkg, fieldName
 			}
 			rowsAffected := tdb.PrepareExecContext(ctx, pvs, pkg, fieldName)
 			prepareResult := reflect.ValueOf(&PrepareResult{RowsAffected: rowsAffected})
-			if t.Out(0).Kind() == reflect.Pointer {
-				return []reflect.Value{prepareResult}
-			} else {
-				return []reflect.Value{prepareResult.Elem()}
+			if t.Out(0) == PrepareResultType || t.Out(0) == PprepareResultType {
+				if t.Out(0).Kind() == reflect.Pointer {
+					results[0] = prepareResult
+				} else {
+					results[0] = prepareResult.Elem()
+				}
 			}
 		case SelectAction:
-			return []reflect.Value{tdb.selectByType(ctx, param, t.Out(0), pkg, fieldName)}
+			results[0] = tdb.selectByType(ctx, param, t.Out(0), pkg, fieldName)
 		case SelectScanAction:
 			tdb.SelectScanFuncContext(ctx, param, scanFunc, pkg, fieldName)
-			return nil
 		case ExecNoResultAction:
 			tdb.ExecContext(ctx, param, pkg, fieldName)
-			return nil
-		default:
-			return nil
 		}
+		return results
 	})
 }

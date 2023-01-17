@@ -40,6 +40,18 @@ type TemplateDB interface {
 
 var RecoverPrintf func(format string, a ...any) (n int, err error)
 
+func recoverPrintf(err error) {
+	if RecoverPrintf != nil && err != nil {
+		var pc []uintptr = make([]uintptr, MaxStackLen)
+		n := runtime.Callers(3, pc[:])
+		frames := runtime.CallersFrames(pc[:n])
+		RecoverPrintf("%s \n", err)
+		for frame, more := frames.Next(); more; frame, more = frames.Next() {
+			RecoverPrintf("%s:%d \n", frame.File, frame.Line)
+		}
+	}
+}
+
 var MaxStackLen = 50
 
 type DefaultDB struct {
@@ -139,15 +151,7 @@ func (db *DefaultDB) Recover(errp *error) {
 				panic(e)
 			}
 		}
-		if RecoverPrintf != nil && *errp != nil {
-			var pc []uintptr = make([]uintptr, MaxStackLen)
-			n := runtime.Callers(3, pc[:])
-			frames := runtime.CallersFrames(pc[:n])
-			RecoverPrintf("%s \n", *errp)
-			for frame, more := frames.Next(); more; frame, more = frames.Next() {
-				RecoverPrintf("%s:%d \n", frame.File, frame.Line)
-			}
-		}
+		recoverPrintf(*errp)
 	}
 }
 
@@ -397,15 +401,7 @@ func (tx *TemplateTxDB) AutoCommit(errp *error) {
 			default:
 				panic(e)
 			}
-			if RecoverPrintf != nil && *errp != nil {
-				var pc []uintptr = make([]uintptr, MaxStackLen)
-				n := runtime.Callers(3, pc[:])
-				frames := runtime.CallersFrames(pc[:n])
-				RecoverPrintf("%s \n", *errp)
-				for frame, more := frames.Next(); more; frame, more = frames.Next() {
-					RecoverPrintf("%s:%d \n", frame.File, frame.Line)
-				}
-			}
+			recoverPrintf(*errp)
 		}
 	}
 	if *errp != nil {
