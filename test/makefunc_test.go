@@ -86,7 +86,6 @@ func TestMakeExecFuncNoResult(t *testing.T) {
 		Avatar:       "aa.jpg",
 		Image:        "bb.jpg",
 	}})
-	// fmt.Println(a)
 }
 
 func TestMakeExecFuncNoResultError(t *testing.T) {
@@ -142,4 +141,53 @@ func TestMakePrepareExecFunc(t *testing.T) {
 		Image:        "bb.jpg",
 	}})
 	fmt.Println(a)
+}
+
+type TestJson struct {
+	Id    int    `json:"id"`
+	Jname string `json:"jname"`
+	User  *User  `json:"user"`
+}
+
+type User struct {
+	Name string `json:"name"`
+	Age  int    `json:"age"`
+}
+type MTestJson struct {
+	templatedb.DBFunc[MTestJson]
+	Insert func(*TestJson)
+	Select func() []TestJson
+}
+
+func TestJSONInert(t *testing.T) {
+	db, err := getDB()
+	if err != nil {
+		t.Error(err)
+	}
+	dest, err := templatedb.DBFuncInit(&MTestJson{}, db)
+	if err != nil {
+		t.Error(err)
+	}
+	dest.Insert(&TestJson{
+		Jname: "qwer",
+		User: &User{
+			Name: "lix",
+			Age:  16,
+		},
+	})
+}
+
+func TestJSONSelect(t *testing.T) {
+	db, err := getDB()
+	if err != nil {
+		t.Error(err)
+	}
+	dest, err := templatedb.DBFuncInit(&MTestJson{}, db)
+	if err != nil {
+		t.Error(err)
+	}
+	sv := dest.Select()
+	for _, v := range sv {
+		fmt.Printf("%#v", v.User)
+	}
 }
