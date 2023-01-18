@@ -191,6 +191,9 @@ func JsonTagAsFieldName(tag reflect.StructTag, fieldName string) bool {
 }
 
 func JsonConvertStruct(s *scanner.StructScaner, v any) error {
+	if v == nil {
+		return nil
+	}
 	field := s.Dest.FieldByIndex(s.Index)
 	if field.Kind() == reflect.Pointer {
 		field.Set(reflect.New(field.Type().Elem()))
