@@ -160,7 +160,7 @@ func makeDBFunc(t reflect.Type, tdb TemplateDB, action Operation, pkg, fieldName
 					switch rerr := e.(type) {
 					case error:
 						if t.NumOut() == 2 {
-							results[0] = reflect.New(t.Out(0)).Elem()
+							results[0] = reflect.Zero(t.Out(0))
 						}
 						results[len(results)-1] = reflect.ValueOf(rerr)
 						recoverPrintf(rerr)
@@ -169,7 +169,7 @@ func makeDBFunc(t reflect.Type, tdb TemplateDB, action Operation, pkg, fieldName
 					}
 				}
 			}()
-			results[len(results)-1] = reflect.New(errorType).Elem()
+			results[len(results)-1] = reflect.Zero(errorType)
 		}
 		switch action {
 		case ExecAction:

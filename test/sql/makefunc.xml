@@ -3,7 +3,7 @@
         select * from tbl_test1
     </sql>
     <sql func="MTest" name="Exec">
-        INSERT INTO tbl_test
+        INSERT INTO tbl_test1
         (userId, name, phone, introduction, avatar, image, status)
         VALUES {range $i,$v:=. } {comma $i}
         (@userId, @name, @phone, @introduction, @avatar, @image, @status)  
