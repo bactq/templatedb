@@ -12,15 +12,16 @@ import (
 
 type SelectDB[T any] struct {
 	actionDB
-	sqldb sqlDB
+	sqldb    sqlDB
+	sliceLen int
 }
 
 func DBSelect[T any](db TemplateDB) *SelectDB[T] {
 	if db, ok := db.(*DefaultDB); ok {
-		return &SelectDB[T]{actionDB: db, sqldb: db.sqlDB}
+		return &SelectDB[T]{actionDB: db, sqldb: db.sqlDB, sliceLen: 10}
 	}
 	if db, ok := db.(*TemplateTxDB); ok {
-		return &SelectDB[T]{actionDB: db.actionDB, sqldb: db.tx}
+		return &SelectDB[T]{actionDB: db.actionDB, sqldb: db.tx, sliceLen: 10}
 	}
 	return nil
 }
@@ -185,6 +186,10 @@ func newReceiver(rt reflect.Type, columns []*sql.ColumnType, scanRows []any) ref
 	}
 }
 
+func (sdb *SelectDB[T]) SliceLen(sliceLen int) *SelectDB[T] {
+	sdb.sliceLen = sliceLen
+	return sdb
+}
 func (sdb *SelectDB[T]) Select(params any, name ...any) []T {
 	return sdb.selectContextCommon(context.Background(), params, name...)
 }
@@ -201,7 +206,7 @@ func (sdb *SelectDB[T]) selectContextCommon(ctx context.Context, params any, nam
 	defer rows.Close()
 	t := reflect.TypeOf((*T)(nil)).Elem()
 	dest := newScanDest(columns, t)
-	ret := *(new([]T))
+	ret := make([]T, 0, sdb.sliceLen)
 	for rows.Next() {
 		receiver := newReceiver(t, columns, dest)
 		err = rows.Scan(dest...)
