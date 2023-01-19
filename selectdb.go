@@ -124,14 +124,14 @@ func newReceiver(rt reflect.Type, columns []*sql.ColumnType, scanRows []any) ref
 		dv := ret.Elem()
 		for _, v := range scanRows {
 			if vi, ok := v.(*scanner.StructScaner); ok {
-				vi.Dest = &dv
+				vi.Dest = dv
 			}
 		}
 	} else if t.Kind() == reflect.Map && t.Key().Kind() == reflect.String {
 		dest := reflect.MakeMapWithSize(reflect.MapOf(t.Key(), t.Elem()), len(columns))
 		for _, v := range scanRows {
 			if vi, ok := v.(*scanner.MapScaner); ok {
-				vi.Dest = &dest
+				vi.Dest = dest
 			}
 		}
 		ret.Elem().Set(dest)
@@ -139,7 +139,7 @@ func newReceiver(rt reflect.Type, columns []*sql.ColumnType, scanRows []any) ref
 		dest := reflect.MakeSlice(reflect.SliceOf(t.Elem()), len(columns), len(columns))
 		for _, v := range scanRows {
 			if vi, ok := v.(*scanner.SliceScaner); ok {
-				vi.Dest = &dest
+				vi.Dest = dest
 			}
 		}
 		ret.Elem().Set(dest)
@@ -154,7 +154,7 @@ func newReceiver(rt reflect.Type, columns []*sql.ColumnType, scanRows []any) ref
 			})
 			for i, v := range scanRows {
 				if vi, ok := v.(*scanner.ParameterScaner); ok {
-					vi.Dest = &results[i]
+					vi.Dest = results[i]
 				}
 			}
 			ret.Elem().Set(dest)
@@ -165,7 +165,7 @@ func newReceiver(rt reflect.Type, columns []*sql.ColumnType, scanRows []any) ref
 			}
 			for i, v := range scanRows {
 				if vi, ok := v.(*scanner.ParameterScaner); ok {
-					vi.Dest = &results[i]
+					vi.Dest = results[i]
 				}
 			}
 			return reflect.ValueOf(results)
@@ -174,7 +174,7 @@ func newReceiver(rt reflect.Type, columns []*sql.ColumnType, scanRows []any) ref
 		dest := ret.Elem()
 		for _, v := range scanRows {
 			if vi, ok := v.(*scanner.ParameterScaner); ok {
-				vi.Dest = &dest
+				vi.Dest = dest
 			}
 		}
 	}

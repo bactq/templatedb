@@ -222,22 +222,14 @@ func (db *DefaultDB) selectScanFunc(ctx context.Context, sdb sqlDB, params any, 
 	}
 	if st.NumIn() == 1 {
 		t := st.In(0)
-		sit := t
-		if t.Kind() == reflect.Pointer {
-			sit = t.Elem()
-		}
-		dest := newScanDest(columns, sit)
+		dest := newScanDest(columns, t)
 		for rows.Next() {
-			receiver := newReceiver(sit, columns, dest)
+			receiver := newReceiver(t, columns, dest)
 			err = rows.Scan(dest...)
 			if err != nil {
 				panic(err)
 			}
-			if t.Kind() == reflect.Pointer {
-				reflect.ValueOf(scanFunc).Call([]reflect.Value{receiver})
-			} else {
-				reflect.ValueOf(scanFunc).Call([]reflect.Value{receiver.Elem()})
-			}
+			reflect.ValueOf(scanFunc).Call([]reflect.Value{receiver})
 		}
 	} else {
 		dest := newScanDest(columns, st)
