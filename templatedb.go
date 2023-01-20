@@ -176,6 +176,9 @@ func (db *DefaultDB) templateBuild(query string, params any) (sql string, args [
 	templateSql, templateok := db.template[query]
 	if !templateok {
 		_, query, _ := strings.Cut(query, ":")
+		if len(strings.Trim(query, "\t\n\f\r ")) == 0 {
+			return "", nil, fmt.Errorf("template sql string is empy")
+		}
 		templateSql, err = db.parse(query)
 		if err != nil {
 			return
