@@ -34,10 +34,28 @@ type MTest struct {
 		  (@userId, @name, @phone, @introduction, @avatar, @image, @status)
 		  {end}
 	*/
-	Exec              func([]GoodShop) (templatedb.Result, error)
-	ExecNoResult      func([]GoodShop)
+	Exec func([]GoodShop) (templatedb.Result, error)
+	/*
+			INSERT INTO tbl_test
+		        (userId, name, phone, introduction, avatar, image, status)
+		        VALUES {range $i,$v:=. } {comma $i}
+		        (@userId, @name, @phone, @introduction, @avatar, @image, @status)
+		        {end}
+	*/
+	ExecNoResult func([]GoodShop)
+	/*
+			INSERT INTO tbl_test
+		        (userId, name, phone, introduction, avatar, image, status)
+		        VALUES {range $i,$v:=. } {comma $i}
+		        (@userId, @name, @phone, @introduction, @avatar, @image, @status)
+		        {end}
+	*/
 	ExecNoResultError func([]GoodShop) error
-	PrepareExec       func([]GoodShop) templatedb.PrepareResult
+	/*
+		INSERT INTO tbl_test (userId, name, phone, introduction, avatar, image, status) VALUES
+		    (@userId, @name, @phone, @introduction, @avatar, @image, @status)
+	*/
+	PrepareExec func([]GoodShop) templatedb.PrepareResult
 }
 
 var pkg = reflect.TypeOf((*MTest)(nil)).Elem().PkgPath()
