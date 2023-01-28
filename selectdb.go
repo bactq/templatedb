@@ -28,16 +28,16 @@ func (sdb *SelectDB[T]) SliceLen(sliceLen int) *SelectDB[T] {
 }
 
 func (sdb *SelectDB[T]) Select(params any, name ...any) []T {
-	return sdb.selectCommon(context.Background(), sdb.sqldb, params, reflect.SliceOf(sdb.t), name).Interface().([]T)
+	return sdb.selectCommon(context.Background(), sdb.sqldb, params, reflect.SliceOf(sdb.t), sdb.sliceLen, name).Interface().([]T)
 }
 func (sdb *SelectDB[T]) SelectContext(ctx context.Context, params any, name ...any) []T {
-	return sdb.selectCommon(ctx, sdb.sqldb, params, reflect.SliceOf(sdb.t), name).Interface().([]T)
+	return sdb.selectCommon(ctx, sdb.sqldb, params, reflect.SliceOf(sdb.t), sdb.sliceLen, name).Interface().([]T)
 }
 
 func (sdb *SelectDB[T]) SelectFirst(params any, name ...any) T {
-	return sdb.selectCommon(context.Background(), sdb.sqldb, params, sdb.t, name).Interface().(T)
+	return sdb.selectCommon(context.Background(), sdb.sqldb, params, sdb.t, 0, name).Interface().(T)
 }
 
 func (sdb *SelectDB[T]) SelectFirstContext(ctx context.Context, params any, name ...any) T {
-	return sdb.selectCommon(ctx, sdb.sqldb, params, sdb.t, name).Interface().(T)
+	return sdb.selectCommon(ctx, sdb.sqldb, params, sdb.t, 0, name).Interface().(T)
 }

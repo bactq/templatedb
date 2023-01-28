@@ -24,7 +24,7 @@ type actionDB interface {
 	selectScanFunc(ctx context.Context, adb sqlDB, params any, scanFunc any, name []any)
 	exec(ctx context.Context, adb sqlDB, params any, name []any) (lastInsertId, rowsAffected int64)
 	prepareExecContext(ctx context.Context, adb sqlDB, params []any, name []any) (rowsAffected int64)
-	selectCommon(ctx context.Context, sdb sqlDB, params any, t reflect.Type, name []any) reflect.Value
+	selectCommon(ctx context.Context, sdb sqlDB, params any, t reflect.Type, cap int, name []any) reflect.Value
 }
 
 type TemplateDB interface {
@@ -230,7 +230,7 @@ func (db *DefaultDB) selectScanFunc(ctx context.Context, sdb sqlDB, params any, 
 	}
 }
 
-func (db *DefaultDB) selectCommon(ctx context.Context, sdb sqlDB, params any, t reflect.Type, name []any) reflect.Value {
+func (db *DefaultDB) selectCommon(ctx context.Context, sdb sqlDB, params any, t reflect.Type, cap int, name []any) reflect.Value {
 	statement := getSkipFuncName(3, name)
 	sql, args, err := db.templateBuild(statement, params)
 	if err != nil {
@@ -248,7 +248,10 @@ func (db *DefaultDB) selectCommon(ctx context.Context, sdb sqlDB, params any, t 
 	var ret reflect.Value
 	st := t
 	if t.Kind() == reflect.Slice {
-		ret = reflect.MakeSlice(t, 0, 10)
+		if cap <= 0 {
+			cap = 10
+		}
+		ret = reflect.MakeSlice(t, 0, cap)
 		st = t.Elem()
 	} else {
 		ret = reflect.New(t).Elem()
@@ -350,7 +353,7 @@ func (db *DefaultDB) SelectScanFuncContext(ctx context.Context, params any, scan
 }
 
 func (db *DefaultDB) selectByType(ctx context.Context, params any, t reflect.Type, name ...any) reflect.Value {
-	return db.selectCommon(ctx, db.sqlDB, params, t, name)
+	return db.selectCommon(ctx, db.sqlDB, params, t, 0, name)
 }
 
 func (db *DefaultDB) Begin() (*TemplateTxDB, error) {
@@ -414,5 +417,5 @@ func (tx *TemplateTxDB) SelectScanFuncContext(ctx context.Context, params any, s
 }
 
 func (tx *TemplateTxDB) selectByType(ctx context.Context, params any, t reflect.Type, name ...any) reflect.Value {
-	return tx.selectCommon(ctx, tx.tx, params, t, name)
+	return tx.selectCommon(ctx, tx.tx, params, t, 0, name)
 }
