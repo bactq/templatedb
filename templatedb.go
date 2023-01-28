@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/tianxinzizhen/templatedb/load"
+	"github.com/tianxinzizhen/templatedb/load/comment/cstruct"
 	"github.com/tianxinzizhen/templatedb/load/xml"
 	"github.com/tianxinzizhen/templatedb/template"
 )
@@ -94,7 +95,22 @@ func LoadSqlOfXml(sqlDirs ...embed.FS) func(*DefaultDB) error {
 	}
 }
 
-func LoadSqlOfBytes(xmlSqls ...[]byte) func(*DefaultDB) error {
+func LoadSqlOfCommentStrcut(pkg string, sqlDirs ...embed.FS) func(*DefaultDB) error {
+	return func(db *DefaultDB) error {
+		if db.template == nil {
+			db.template = make(map[string]*template.Template)
+		}
+		for _, v := range sqlDirs {
+			err := cstruct.LoadTemplateStatements(pkg, v, db.template, db.parse)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+}
+
+func LoadSqlOfXmlBytes(xmlSqls ...[]byte) func(*DefaultDB) error {
 	return func(db *DefaultDB) error {
 		if db.template == nil {
 			db.template = make(map[string]*template.Template)
@@ -109,7 +125,7 @@ func LoadSqlOfBytes(xmlSqls ...[]byte) func(*DefaultDB) error {
 	}
 }
 
-func LoadSqlOfString(xmlSqls ...string) func(*DefaultDB) error {
+func LoadSqlOfXmlString(xmlSqls ...string) func(*DefaultDB) error {
 	return func(db *DefaultDB) error {
 		if db.template == nil {
 			db.template = make(map[string]*template.Template)
