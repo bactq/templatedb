@@ -75,6 +75,7 @@ func TestSelect(t *testing.T) {
 		for _, v := range ret {
 			fmt.Printf("%#v\n", v)
 		}
+		// fmt.Printf("%#v", templatedb.DBSelect[map[string]any](db).SelectFirst(tp.param, tp.name))
 	}
 }
 

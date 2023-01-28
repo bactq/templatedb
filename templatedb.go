@@ -21,7 +21,6 @@ type sqlDB interface {
 }
 
 type actionDB interface {
-	query(ctx context.Context, adb sqlDB, statement string, params any, name []any) (*sql.Rows, []*sql.ColumnType, error)
 	selectScanFunc(ctx context.Context, adb sqlDB, params any, scanFunc any, name []any)
 	exec(ctx context.Context, adb sqlDB, params any, name []any) (lastInsertId, rowsAffected int64)
 	prepareExecContext(ctx context.Context, adb sqlDB, params []any, name []any) (rowsAffected int64)
@@ -188,22 +187,6 @@ func (db *DefaultDB) templateBuild(query string, params any) (sql string, args [
 	return templateSql.ExecuteBuilder(params)
 }
 
-func (db *DefaultDB) query(ctx context.Context, sdb sqlDB, statement string, params any, name []any) (*sql.Rows, []*sql.ColumnType, error) {
-	sql, args, err := db.templateBuild(statement, params)
-	if err != nil {
-		return nil, nil, err
-	}
-	rows, err := sdb.QueryContext(ctx, sql, args...)
-	if err != nil {
-		return nil, nil, err
-	}
-	columns, err := rows.ColumnTypes()
-	if err != nil {
-		return nil, nil, err
-	}
-	return rows, columns, nil
-}
-
 func (db *DefaultDB) selectScanFunc(ctx context.Context, sdb sqlDB, params any, scanFunc any, name []any) {
 	statement := getSkipFuncName(3, name)
 	sql, args, err := db.templateBuild(statement, params)
@@ -365,6 +348,7 @@ func (db *DefaultDB) SelectScanFunc(params any, scanFunc any, name ...any) {
 func (db *DefaultDB) SelectScanFuncContext(ctx context.Context, params any, scanFunc any, name ...any) {
 	db.selectScanFunc(ctx, db.sqlDB, params, scanFunc, name)
 }
+
 func (db *DefaultDB) selectByType(ctx context.Context, params any, t reflect.Type, name ...any) reflect.Value {
 	return db.selectCommon(ctx, db.sqlDB, params, t, name)
 }
