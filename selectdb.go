@@ -43,7 +43,7 @@ func (sdb *SelectDB[T]) SelectFirstContext(ctx context.Context, params any, name
 	return sdb.selectCommon(ctx, sdb.sqldb, params, sdb.t, 0, name).Interface().(T)
 }
 
-func DBConvertRows[T any](rows sql.Rows, cap int) T {
+func DBConvertRows[T any](rows *sql.Rows, cap int) T {
 	t := reflect.TypeOf((*T)(nil)).Elem()
 	columns, err := rows.ColumnTypes()
 	if err != nil {
