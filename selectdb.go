@@ -29,22 +29,19 @@ func (sdb *SelectDB[T]) SliceLen(sliceLen int) *SelectDB[T] {
 	return sdb
 }
 
-func (sdb *SelectDB[T]) Select(params any, name ...any) []T {
-	return sdb.selectCommon(context.Background(), sdb.sqldb, params, reflect.SliceOf(sdb.t), sdb.sliceLen, name).Interface().([]T)
-}
-func (sdb *SelectDB[T]) SelectContext(ctx context.Context, params any, name ...any) []T {
-	return sdb.selectCommon(ctx, sdb.sqldb, params, reflect.SliceOf(sdb.t), sdb.sliceLen, name).Interface().([]T)
+func (sdb *SelectDB[T]) Select(params any, name ...any) T {
+	return sdb.selectCommon(context.Background(), sdb.sqldb, params, sdb.t, sdb.sliceLen, name).Interface().(T)
 }
 
-func (sdb *SelectDB[T]) SelectFirst(params any, name ...any) T {
-	return sdb.selectCommon(context.Background(), sdb.sqldb, params, sdb.t, 0, name).Interface().(T)
+func (sdb *SelectDB[T]) SelectContext(ctx context.Context, params any, name ...any) T {
+	return sdb.selectCommon(ctx, sdb.sqldb, params, sdb.t, sdb.sliceLen, name).Interface().(T)
 }
 
-func (sdb *SelectDB[T]) SelectFirstContext(ctx context.Context, params any, name ...any) T {
-	return sdb.selectCommon(ctx, sdb.sqldb, params, sdb.t, 0, name).Interface().(T)
+func DBConvertRows[T any](rows *sql.Rows) T {
+	return DBConvertRowsCap[T](rows, 0)
 }
 
-func DBConvertRows[T any](rows *sql.Rows, cap int) T {
+func DBConvertRowsCap[T any](rows *sql.Rows, cap int) T {
 	t := reflect.TypeOf((*T)(nil)).Elem()
 	columns, err := rows.ColumnTypes()
 	if err != nil {
