@@ -2,6 +2,7 @@ package templatedb
 
 import (
 	"context"
+	"database/sql"
 	"reflect"
 )
 
@@ -40,4 +41,37 @@ func (sdb *SelectDB[T]) SelectFirst(params any, name ...any) T {
 
 func (sdb *SelectDB[T]) SelectFirstContext(ctx context.Context, params any, name ...any) T {
 	return sdb.selectCommon(ctx, sdb.sqldb, params, sdb.t, 0, name).Interface().(T)
+}
+
+func DBConvertRows[T any](rows sql.Rows, cap int) T {
+	t := reflect.TypeOf((*T)(nil)).Elem()
+	columns, err := rows.ColumnTypes()
+	if err != nil {
+		panic(err)
+	}
+	var ret reflect.Value
+	st := t
+	if t.Kind() == reflect.Slice {
+		if cap <= 0 {
+			cap = 10
+		}
+		ret = reflect.MakeSlice(t, 0, cap)
+		st = t.Elem()
+	} else {
+		ret = reflect.New(t).Elem()
+	}
+	dest := newScanDest(columns, st)
+	for rows.Next() {
+		receiver := newReceiver(st, columns, dest)
+		err = rows.Scan(dest...)
+		if err != nil {
+			panic(err)
+		}
+		if t.Kind() == reflect.Slice {
+			ret = reflect.Append(ret, receiver)
+		} else {
+			return receiver.Interface().(T)
+		}
+	}
+	return ret.Interface().(T)
 }
