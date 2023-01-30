@@ -3,6 +3,7 @@ package templatedb
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"reflect"
 )
 
@@ -74,4 +75,22 @@ func DBConvertRows[T any](rows *sql.Rows, cap int) T {
 		}
 	}
 	return ret.Interface().(T)
+}
+
+func DBConvertRow[T any](rows *sql.Rows) T {
+	t := reflect.TypeOf((*T)(nil)).Elem()
+	columns, err := rows.ColumnTypes()
+	if err != nil {
+		panic(err)
+	}
+	if t.Kind() == reflect.Slice {
+		panic(fmt.Errorf("DBConvertRow not Convert Slice"))
+	}
+	dest := newScanDest(columns, t)
+	receiver := newReceiver(t, columns, dest)
+	err = rows.Scan(dest...)
+	if err != nil {
+		panic(err)
+	}
+	return receiver.Interface().(T)
 }
