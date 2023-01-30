@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/tianxinzizhen/templatedb/load"
-	"github.com/tianxinzizhen/templatedb/load/comment/cstruct"
+	commentStruct "github.com/tianxinzizhen/templatedb/load/comment/cstruct"
 	"github.com/tianxinzizhen/templatedb/load/xml"
 	"github.com/tianxinzizhen/templatedb/template"
 )
@@ -101,7 +101,7 @@ func LoadSqlOfCommentStruct(pkg string, sqlDirs ...embed.FS) func(*DefaultDB) er
 			db.template = make(map[string]*template.Template)
 		}
 		for _, v := range sqlDirs {
-			err := cstruct.LoadTemplateStatements(pkg, v, db.template, db.parse)
+			err := commentStruct.LoadTemplateStatements(pkg, v, db.template, db.parse)
 			if err != nil {
 				return err
 			}
