@@ -369,6 +369,7 @@ func (db *DefaultDB) Exec(params any, name ...any) (lastInsertId, rowsAffected i
 func (db *DefaultDB) ExecContext(ctx context.Context, params any, name ...any) (lastInsertId, rowsAffected int64) {
 	return db.exec(ctx, db.sqlDB, params, name)
 }
+
 func (db *DefaultDB) PrepareExec(params []any, name ...any) (rowsAffected int64) {
 	return db.prepareExecContext(context.Background(), db.sqlDB, params, name)
 }
@@ -380,6 +381,7 @@ func (db *DefaultDB) PrepareExecContext(ctx context.Context, params []any, name 
 func (db *DefaultDB) SelectScanFunc(params any, scanFunc any, name ...any) {
 	db.selectScanFunc(context.Background(), db.sqlDB, params, scanFunc, name)
 }
+
 func (db *DefaultDB) SelectScanFuncContext(ctx context.Context, params any, scanFunc any, name ...any) {
 	db.selectScanFunc(ctx, db.sqlDB, params, scanFunc, name)
 }
