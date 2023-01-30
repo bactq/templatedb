@@ -190,7 +190,7 @@ func JsonTagAsFieldName(tag reflect.StructTag, fieldName string) bool {
 	return false
 }
 
-func JsonConvertStruct(s *scanner.StructScaner, src any) error {
+func JsonConvertStruct(s *scanner.StructScanner, src any) error {
 	if src == nil {
 		return nil
 	}

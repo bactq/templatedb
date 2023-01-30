@@ -46,11 +46,11 @@ func LoadTemplateStatementsOfBytes(pkg string, bytes []byte, template map[string
 	if bytes == nil {
 		return errors.New("sql go bytes is nil")
 	}
-	astCommment, err := parser.ParseFile(token.NewFileSet(), "", bytes, parser.ParseComments)
+	astComment, err := parser.ParseFile(token.NewFileSet(), "", bytes, parser.ParseComments)
 	if err != nil {
 		return err
 	}
-	for _, v := range astCommment.Decls {
+	for _, v := range astComment.Decls {
 		if genDecl, ok := v.(*ast.GenDecl); ok {
 			switch genDecl.Tok {
 			case token.TYPE:
@@ -98,6 +98,6 @@ func LoadTemplateStatementsOfBytes(pkg string, bytes []byte, template map[string
 	return nil
 }
 
-func LoadTemplateStatementsOfString(pkg string, sqlCommonts string, template map[string]*template.Template, parse func(parse string, addParseTrees ...load.AddParseTree) (*template.Template, error)) error {
-	return LoadTemplateStatementsOfBytes(pkg, []byte(sqlCommonts), template, parse)
+func LoadTemplateStatementsOfString(pkg string, sqlComments string, template map[string]*template.Template, parse func(parse string, addParseTrees ...load.AddParseTree) (*template.Template, error)) error {
+	return LoadTemplateStatementsOfBytes(pkg, []byte(sqlComments), template, parse)
 }
