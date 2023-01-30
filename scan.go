@@ -25,9 +25,9 @@ func getTempScanDest(scanType reflect.Type) any {
 	}
 }
 
-var scanConvertByDatabaseType map[string]func(s *scanner.StructScanner, v any) error = make(map[string]func(s *scanner.StructScanner, v any) error)
+var scanConvertByDatabaseType map[string]func(field reflect.Value, v any) error = make(map[string]func(field reflect.Value, v any) error)
 
-func AddScanConvertDatabaseTypeFunc(key string, funcMethod func(s *scanner.StructScanner, v any) error) {
+func AddScanConvertDatabaseTypeFunc(key string, funcMethod func(field reflect.Value, v any) error) {
 	scanConvertByDatabaseType[key] = funcMethod
 }
 
@@ -35,9 +35,10 @@ func newScanDest(columns []*sql.ColumnType, t reflect.Type) []any {
 	if t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
-	indexMap := make(map[int][]int, len(columns))
-	for i, item := range columns {
-		if t.Kind() == reflect.Struct {
+	destSlice := make([]any, 0, len(columns))
+	if t.Kind() == reflect.Struct {
+		indexMap := make(map[int][]int, len(columns))
+		for i, item := range columns {
 			f, ok := template.GetFieldByName(t, item.Name())
 			if ok {
 				indexMap[i] = f.Index
@@ -45,9 +46,6 @@ func newScanDest(columns []*sql.ColumnType, t reflect.Type) []any {
 				panic(fmt.Errorf("类型%v无法扫描字段：%s", t, item.Name()))
 			}
 		}
-	}
-	destSlice := make([]any, 0, len(columns))
-	if t.Kind() == reflect.Struct {
 		for si, v := range columns {
 			destSlice = append(destSlice, &scanner.StructScanner{Convert: scanConvertByDatabaseType[v.DatabaseTypeName()], Index: indexMap[si]})
 		}
@@ -69,7 +67,7 @@ func newScanDest(columns []*sql.ColumnType, t reflect.Type) []any {
 		if t.NumIn() == 0 && t.NumOut() > 0 {
 			i := 0
 			for ; i < t.NumOut(); i++ {
-				destSlice = append(destSlice, &scanner.ParameterScanner{Column: columns[i]})
+				destSlice = append(destSlice, &scanner.ParameterScanner{Column: columns[i], Convert: scanConvertByDatabaseType[columns[i].DatabaseTypeName()]})
 			}
 			for ; i < len(columns); i++ {
 				destSlice = append(destSlice, getTempScanDest(columns[i].ScanType()))
@@ -78,7 +76,7 @@ func newScanDest(columns []*sql.ColumnType, t reflect.Type) []any {
 		} else if t.NumOut() == 0 && t.NumIn() > 0 {
 			i := 0
 			for ; i < t.NumIn(); i++ {
-				destSlice = append(destSlice, &scanner.ParameterScanner{Column: columns[i]})
+				destSlice = append(destSlice, &scanner.ParameterScanner{Column: columns[i], Convert: scanConvertByDatabaseType[columns[i].DatabaseTypeName()]})
 			}
 			for ; i < len(columns); i++ {
 				destSlice = append(destSlice, getTempScanDest(columns[i].ScanType()))
@@ -89,7 +87,7 @@ func newScanDest(columns []*sql.ColumnType, t reflect.Type) []any {
 		}
 	} else {
 		if len(columns) > 0 {
-			destSlice = append(destSlice, &scanner.ParameterScanner{Column: columns[0]})
+			destSlice = append(destSlice, &scanner.ParameterScanner{Column: columns[0], Convert: scanConvertByDatabaseType[columns[0].DatabaseTypeName()]})
 			for i := 1; i < len(columns); i++ {
 				destSlice = append(destSlice, getTempScanDest(columns[i].ScanType()))
 			}

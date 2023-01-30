@@ -190,11 +190,10 @@ func JsonTagAsFieldName(tag reflect.StructTag, fieldName string) bool {
 	return false
 }
 
-func JsonConvertStruct(s *scanner.StructScanner, src any) error {
+func JsonConvertStruct(field reflect.Value, src any) error {
 	if src == nil {
 		return nil
 	}
-	field := s.Dest.FieldByIndex(s.Index)
 	if field.Kind() == reflect.Struct {
 		if field.Kind() == reflect.Pointer {
 			field.Set(reflect.New(field.Type().Elem()))
@@ -214,7 +213,7 @@ func init() {
 	AddTemplateFunc("in", inParam)
 	AddTemplateFunc("like", like)
 	AddTemplateFunc("param", params)
-	AddTemplateFunc("sqlescape", sqlEscape)
+	AddTemplateFunc("sqlEscape", sqlEscape)
 	AddTemplateFunc("orNull", orNull)
 	AddTemplateFunc("marshal", marshal)
 	//模版@#号字符串拼接时对字段值转化成sql字符串函数

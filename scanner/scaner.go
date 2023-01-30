@@ -8,7 +8,7 @@ import (
 
 type StructScanner struct {
 	Dest    reflect.Value
-	Convert func(s *StructScanner, v any) error
+	Convert func(field reflect.Value, v any) error
 	Index   []int
 }
 
@@ -17,7 +17,7 @@ func (s *StructScanner) Scan(src any) error {
 		return nil
 	}
 	if s.Convert != nil {
-		return s.Convert(s, src)
+		return s.Convert(s.Dest.FieldByIndex(s.Index), src)
 	}
 	return ConvertAssign(s.Dest.FieldByIndex(s.Index).Addr().Interface(), src)
 }
@@ -65,8 +65,9 @@ func (s *SliceScanner) Scan(src any) error {
 }
 
 type ParameterScanner struct {
-	Dest   reflect.Value
-	Column *sql.ColumnType
+	Dest    reflect.Value
+	Column  *sql.ColumnType
+	Convert func(field reflect.Value, v any) error
 }
 
 func (s *ParameterScanner) Scan(src any) error {
@@ -77,6 +78,9 @@ func (s *ParameterScanner) Scan(src any) error {
 		dest := reflect.New(s.Column.ScanType()).Interface()
 		ConvertAssign(dest, src)
 		sc := scanTypeConvert(dest)
+		if s.Convert != nil {
+			return s.Convert(s.Dest, src)
+		}
 		if sc.CanConvert(vt) {
 			s.Dest.Set(sc.Convert(vt))
 		}

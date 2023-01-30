@@ -163,6 +163,14 @@ func NewDefaultDB(sqlDB *sql.DB, options ...func(*DefaultDB) error) (*DefaultDB,
 	return db, nil
 }
 
+func (db *DefaultDB) LoadSqlOfXml(sqlDirs embed.FS) error {
+	return LoadSqlOfXml(sqlDirs)(db)
+}
+
+func (db *DefaultDB) LoadSqlOfCommentStruct(pkg string, sqlDirs embed.FS) error {
+	return LoadSqlOfCommentStruct(pkg, sqlDirs)(db)
+}
+
 func (db *DefaultDB) Recover(errp *error) {
 	if *errp == nil {
 		e := recover()
