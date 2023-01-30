@@ -66,16 +66,15 @@ func (db *UsualTemplateDB) Begin() (*UsualTemplateTxDB, error) {
 }
 
 func (db *UsualTemplateDB) BeginTx(ctx context.Context, opts *sql.TxOptions) (*UsualTemplateTxDB, error) {
-	tx, err := db.sqlDB.BeginTx(ctx, opts)
+	tx, err := db.DefaultDB.BeginTx(ctx, opts)
 	if err != nil {
 		return nil, err
 	}
-	return &UsualTemplateTxDB{actionDB: db, tx: tx}, nil
+	return &UsualTemplateTxDB{TemplateTxDB: tx}, nil
 }
 
 type UsualTemplateTxDB struct {
-	actionDB
-	tx *sql.Tx
+	*TemplateTxDB
 }
 
 func (tx *UsualTemplateTxDB) AutoCommit(errp *error) {
