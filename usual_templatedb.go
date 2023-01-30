@@ -14,6 +14,22 @@ func NewUsualTemplateDB(db *DefaultDB) *UsualTemplateDB {
 	return &UsualTemplateDB{DefaultDB: db}
 }
 
+func (db *UsualTemplateDB) RawExec(query string, args ...any) (sql.Result, error) {
+	return db.sqlDB.Exec(query, args...)
+}
+
+func (db *UsualTemplateDB) RawExecContext(ctx context.Context, query string, args ...any) (sql.Result, error) {
+	return db.sqlDB.ExecContext(ctx, query, args...)
+}
+
+func (db *UsualTemplateDB) RawQuery(query string, args ...any) (*sql.Rows, error) {
+	return db.sqlDB.Query(query, args...)
+}
+
+func (db *UsualTemplateDB) RawQueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
+	return db.sqlDB.QueryContext(ctx, query, args...)
+}
+
 func (db *UsualTemplateDB) Exec(name string, params any) (lastInsertId, rowsAffected int64) {
 	return db.exec(context.Background(), db.sqlDB, params, []any{name})
 }
@@ -111,4 +127,20 @@ func (tx *UsualTemplateTxDB) SelectByModel(name string, params any, model any) a
 
 func (tx *UsualTemplateTxDB) SelectByModelContext(ctx context.Context, name string, params any, model any) any {
 	return tx.selectCommon(ctx, tx.tx, params, reflect.TypeOf(model), 0, []any{name}).Interface()
+}
+
+func (db *UsualTemplateTxDB) RawExec(query string, args ...any) (sql.Result, error) {
+	return db.tx.Exec(query, args...)
+}
+
+func (db *UsualTemplateTxDB) RawExecContext(ctx context.Context, query string, args ...any) (sql.Result, error) {
+	return db.tx.ExecContext(ctx, query, args...)
+}
+
+func (db *UsualTemplateTxDB) RawQuery(query string, args ...any) (*sql.Rows, error) {
+	return db.tx.Query(query, args...)
+}
+
+func (db *UsualTemplateTxDB) RawQueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
+	return db.tx.QueryContext(ctx, query, args...)
 }
