@@ -69,7 +69,7 @@ func getDB() (*templatedb.DefaultDB, error) {
 		return nil, err
 	}
 	templatedb.RecoverPrintf = fmt.Printf
-	return templatedb.NewDefaultDB(sqldb, templatedb.LoadSqlOfCommentStrcut(pkg, sqlDir))
+	return templatedb.NewDefaultDB(sqldb, templatedb.LoadSqlOfCommentStruct(pkg, sqlDir))
 }
 
 func TestMakeSelectFunc(t *testing.T) {

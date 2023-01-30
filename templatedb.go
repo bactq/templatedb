@@ -95,7 +95,7 @@ func LoadSqlOfXml(sqlDirs ...embed.FS) func(*DefaultDB) error {
 	}
 }
 
-func LoadSqlOfCommentStrcut(pkg string, sqlDirs ...embed.FS) func(*DefaultDB) error {
+func LoadSqlOfCommentStruct(pkg string, sqlDirs ...embed.FS) func(*DefaultDB) error {
 	return func(db *DefaultDB) error {
 		if db.template == nil {
 			db.template = make(map[string]*template.Template)
@@ -171,7 +171,7 @@ func (db *DefaultDB) Recover(errp *error) {
 }
 
 func (db *DefaultDB) parse(parse string, addParseTrees ...load.AddParseTree) (*template.Template, error) {
-	templateSql, err := template.New("").Delims(db.delimsLeft, db.delimsRight).Funcs(sqlfunc).Parse(parse)
+	templateSql, err := template.New("").Delims(db.delimsLeft, db.delimsRight).Funcs(sqlFunc).Parse(parse)
 	if err != nil {
 		return nil, err
 	}

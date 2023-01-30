@@ -44,8 +44,8 @@ type PrepareResult struct {
 }
 
 // 自动初始化构造方法
-func DBFuncInit[T any](dbfuncStruct *T, tdb TemplateDB) (*T, error) {
-	dv, isNil := util.Indirect(reflect.ValueOf(dbfuncStruct))
+func DBFuncInit[T any](dbFuncStruct *T, tdb TemplateDB) (*T, error) {
+	dv, isNil := util.Indirect(reflect.ValueOf(dbFuncStruct))
 	if isNil {
 		return nil, errors.New("InitMakeFunc In(0) is nil")
 	}
@@ -131,7 +131,7 @@ func DBFuncInit[T any](dbfuncStruct *T, tdb TemplateDB) (*T, error) {
 			}
 		}
 	}
-	return dbfuncStruct, nil
+	return dbFuncStruct, nil
 }
 
 func makeDBFunc(t reflect.Type, tdb TemplateDB, action Operation, pkg, fieldName string) reflect.Value {
