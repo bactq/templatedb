@@ -390,6 +390,22 @@ func (db *DefaultDB) selectByType(ctx context.Context, params any, t reflect.Typ
 	return db.selectCommon(ctx, db.sqlDB, params, t, 0, name)
 }
 
+func (db *DefaultDB) RawExec(query string, args ...any) (sql.Result, error) {
+	return db.sqlDB.Exec(query, args...)
+}
+
+func (db *DefaultDB) RawExecContext(ctx context.Context, query string, args ...any) (sql.Result, error) {
+	return db.sqlDB.ExecContext(ctx, query, args...)
+}
+
+func (db *DefaultDB) RawQuery(query string, args ...any) (*sql.Rows, error) {
+	return db.sqlDB.Query(query, args...)
+}
+
+func (db *DefaultDB) RawQueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
+	return db.sqlDB.QueryContext(ctx, query, args...)
+}
+
 func (db *DefaultDB) Begin() (*TemplateTxDB, error) {
 	return db.BeginTx(context.Background(), nil)
 }
@@ -452,4 +468,20 @@ func (tx *TemplateTxDB) SelectScanFuncContext(ctx context.Context, params any, s
 
 func (tx *TemplateTxDB) selectByType(ctx context.Context, params any, t reflect.Type, name ...any) reflect.Value {
 	return tx.selectCommon(ctx, tx.tx, params, t, 0, name)
+}
+
+func (db *TemplateTxDB) RawExec(query string, args ...any) (sql.Result, error) {
+	return db.tx.Exec(query, args...)
+}
+
+func (db *TemplateTxDB) RawExecContext(ctx context.Context, query string, args ...any) (sql.Result, error) {
+	return db.tx.ExecContext(ctx, query, args...)
+}
+
+func (db *TemplateTxDB) RawQuery(query string, args ...any) (*sql.Rows, error) {
+	return db.tx.Query(query, args...)
+}
+
+func (db *TemplateTxDB) RawQueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
+	return db.tx.QueryContext(ctx, query, args...)
 }
