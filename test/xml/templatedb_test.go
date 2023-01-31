@@ -99,7 +99,7 @@ func TestInFunction(t *testing.T) {
 	}
 	defer db.Recover(&err)
 	for _, tp := range TestInFunctionParams {
-		ret := templatedb.DBSelect[GoodShop](db).Select(tp.param, tp.name)
+		ret := templatedb.DBSelect[[]GoodShop](db).Select(tp.param, tp.name)
 		for _, v := range ret {
 			fmt.Printf("%#v\n", v)
 		}
@@ -192,7 +192,7 @@ func TestFunc(t *testing.T) {
 		t.Error(err)
 	}
 	defer db.Recover(&err)
-	ret := templatedb.DBSelect[func() (int, string)](db).Select(nil, TestSelect, "all")
+	ret := templatedb.DBSelect[[]func() (int, string)](db).Select(nil, TestSelect, "all")
 	for _, v := range ret {
 		id, name := v()
 		fmt.Printf("%#v,%#v\n", id, name)
@@ -210,17 +210,17 @@ func TestInsertTime(t *testing.T) {
 	})
 }
 
-func TestQeryString(t *testing.T) {
+func TestQueryString(t *testing.T) {
 	db, err := getDB()
 	defer db.Recover(&err)
-	ret := templatedb.DBSelect[func() (int, string)](db).Select(nil, "select UserId, Name FROM tbl_test")
+	ret := templatedb.DBSelect[[]func() (int, string)](db).Select(nil, "select UserId, Name FROM tbl_test")
 	for _, v := range ret {
 		id, name := v()
 		fmt.Printf("%#v,%#v\n", id, name)
 	}
 }
 
-func TestQeryString1(t *testing.T) {
+func TestQueryString1(t *testing.T) {
 	db, err := getDB()
 	defer db.Recover(&err)
 	db.SelectScanFunc(nil, func(id int, name string) {
