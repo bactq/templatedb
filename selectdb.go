@@ -45,7 +45,7 @@ func DBConvertRowsCap[T any](rows *sql.Rows, cap int) (T, error) {
 	t := reflect.TypeOf((*T)(nil)).Elem()
 	columns, err := rows.ColumnTypes()
 	if err != nil {
-		return *(*T)(nil), err
+		return reflect.Zero(t).Interface().(T), err
 	}
 	var ret reflect.Value
 	st := t
@@ -63,7 +63,7 @@ func DBConvertRowsCap[T any](rows *sql.Rows, cap int) (T, error) {
 		receiver := newReceiver(st, columns, dest)
 		err = rows.Scan(dest...)
 		if err != nil {
-			return *(*T)(nil), err
+			return reflect.Zero(t).Interface().(T), err
 		}
 		if t.Kind() == reflect.Slice {
 			ret = reflect.Append(ret, receiver)
@@ -78,16 +78,16 @@ func DBConvertRow[T any](rows *sql.Rows) (T, error) {
 	t := reflect.TypeOf((*T)(nil)).Elem()
 	columns, err := rows.ColumnTypes()
 	if err != nil {
-		return *(*T)(nil), err
+		return reflect.Zero(t).Interface().(T), err
 	}
 	if t.Kind() == reflect.Slice {
-		return *(*T)(nil), fmt.Errorf("DBConvertRow not Convert Slice")
+		return reflect.Zero(t).Interface().(T), fmt.Errorf("DBConvertRow not Convert Slice")
 	}
 	dest := newScanDest(columns, t)
 	receiver := newReceiver(t, columns, dest)
 	err = rows.Scan(dest...)
 	if err != nil {
-		return *(*T)(nil), err
+		return reflect.Zero(t).Interface().(T), err
 	}
 	return receiver.Interface().(T), nil
 }
