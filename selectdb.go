@@ -37,15 +37,15 @@ func (sdb *SelectDB[T]) SelectContext(ctx context.Context, params any, name ...a
 	return sdb.selectCommon(ctx, sdb.sqldb, params, sdb.t, sdb.sliceLen, name).Interface().(T)
 }
 
-func DBConvertRows[T any](rows *sql.Rows) T {
+func DBConvertRows[T any](rows *sql.Rows) (T, error) {
 	return DBConvertRowsCap[T](rows, 0)
 }
 
-func DBConvertRowsCap[T any](rows *sql.Rows, cap int) T {
+func DBConvertRowsCap[T any](rows *sql.Rows, cap int) (T, error) {
 	t := reflect.TypeOf((*T)(nil)).Elem()
 	columns, err := rows.ColumnTypes()
 	if err != nil {
-		panic(err)
+		return *(*T)(nil), err
 	}
 	var ret reflect.Value
 	st := t
@@ -63,31 +63,31 @@ func DBConvertRowsCap[T any](rows *sql.Rows, cap int) T {
 		receiver := newReceiver(st, columns, dest)
 		err = rows.Scan(dest...)
 		if err != nil {
-			panic(err)
+			return *(*T)(nil), err
 		}
 		if t.Kind() == reflect.Slice {
 			ret = reflect.Append(ret, receiver)
 		} else {
-			return receiver.Interface().(T)
+			return receiver.Interface().(T), nil
 		}
 	}
-	return ret.Interface().(T)
+	return ret.Interface().(T), nil
 }
 
-func DBConvertRow[T any](rows *sql.Rows) T {
+func DBConvertRow[T any](rows *sql.Rows) (T, error) {
 	t := reflect.TypeOf((*T)(nil)).Elem()
 	columns, err := rows.ColumnTypes()
 	if err != nil {
-		panic(err)
+		return *(*T)(nil), err
 	}
 	if t.Kind() == reflect.Slice {
-		panic(fmt.Errorf("DBConvertRow not Convert Slice"))
+		return *(*T)(nil), fmt.Errorf("DBConvertRow not Convert Slice")
 	}
 	dest := newScanDest(columns, t)
 	receiver := newReceiver(t, columns, dest)
 	err = rows.Scan(dest...)
 	if err != nil {
-		panic(err)
+		return *(*T)(nil), err
 	}
-	return receiver.Interface().(T)
+	return receiver.Interface().(T), nil
 }
