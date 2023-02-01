@@ -1,7 +1,6 @@
 package xml
 
 import (
-	"database/sql"
 	"embed"
 	"fmt"
 	"testing"
@@ -9,6 +8,7 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/tianxinzizhen/templatedb"
+	"github.com/tianxinzizhen/templatedb/test"
 )
 
 //go:embed sql
@@ -26,12 +26,12 @@ type GoodShop struct {
 }
 
 func getDB() (*templatedb.DefaultDB, error) {
-	sqldb, err := sql.Open("mysql", "root:lz@3306!@tcp(mysql.local.lezhichuyou.com:3306)/lz_tour_lix?charset=utf8mb4&parseTime=True&loc=Local&multiStatements=true")
+	tdb, err := test.GetDB()
 	if err != nil {
 		return nil, err
 	}
-	templatedb.RecoverPrintf = fmt.Printf
-	return templatedb.NewDefaultDB(sqldb, templatedb.LoadSqlOfXml(sqlDir))
+	tdb.LoadSqlOfXml(sqlDir)
+	return tdb, nil
 }
 
 func TestGetDb(t *testing.T) {

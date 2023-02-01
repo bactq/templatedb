@@ -88,66 +88,6 @@ func SqlParams(sqlParams func(val reflect.Value) any) func(*DefaultDB) error {
 	}
 }
 
-func LoadSqlOfXml(sqlDirs ...embed.FS) func(*DefaultDB) error {
-	return func(db *DefaultDB) error {
-		if db.template == nil {
-			db.template = make(map[string]*template.Template)
-		}
-		for _, v := range sqlDirs {
-			err := xml.LoadTemplateStatements(v, db.template, db.parse)
-			if err != nil {
-				return err
-			}
-		}
-		return nil
-	}
-}
-
-func LoadSqlOfCommentStruct(pkg string, sqlDirs ...embed.FS) func(*DefaultDB) error {
-	return func(db *DefaultDB) error {
-		if db.template == nil {
-			db.template = make(map[string]*template.Template)
-		}
-		for _, v := range sqlDirs {
-			err := commentStruct.LoadTemplateStatements(pkg, v, db.template, db.parse)
-			if err != nil {
-				return err
-			}
-		}
-		return nil
-	}
-}
-
-func LoadSqlOfXmlBytes(xmlSqls ...[]byte) func(*DefaultDB) error {
-	return func(db *DefaultDB) error {
-		if db.template == nil {
-			db.template = make(map[string]*template.Template)
-		}
-		for _, v := range xmlSqls {
-			err := xml.LoadTemplateStatementsOfBytes(v, db.template, db.parse)
-			if err != nil {
-				return err
-			}
-		}
-		return nil
-	}
-}
-
-func LoadSqlOfXmlString(xmlSqls ...string) func(*DefaultDB) error {
-	return func(db *DefaultDB) error {
-		if db.template == nil {
-			db.template = make(map[string]*template.Template)
-		}
-		for _, v := range xmlSqls {
-			err := xml.LoadTemplateStatementsOfString(v, db.template, db.parse)
-			if err != nil {
-				return err
-			}
-		}
-		return nil
-	}
-}
-
 func NewDefaultDB(sqlDB *sql.DB, options ...func(*DefaultDB) error) (*DefaultDB, error) {
 	db := &DefaultDB{
 		sqlDB:      sqlDB,
@@ -163,12 +103,18 @@ func NewDefaultDB(sqlDB *sql.DB, options ...func(*DefaultDB) error) (*DefaultDB,
 	return db, nil
 }
 
-func (db *DefaultDB) LoadSqlOfXml(sqlDirs embed.FS) error {
-	return LoadSqlOfXml(sqlDirs)(db)
+func (db *DefaultDB) LoadSqlOfXml(sqlfs embed.FS) error {
+	if db.template == nil {
+		db.template = make(map[string]*template.Template)
+	}
+	return xml.LoadTemplateStatements(sqlfs, db.template, db.parse)
 }
 
-func (db *DefaultDB) LoadSqlOfCommentStruct(pkg string, sqlDirs embed.FS) error {
-	return LoadSqlOfCommentStruct(pkg, sqlDirs)(db)
+func (db *DefaultDB) LoadSqlOfCommentStruct(pkg string, sqlfs embed.FS) error {
+	if db.template == nil {
+		db.template = make(map[string]*template.Template)
+	}
+	return commentStruct.LoadTemplateStatements(pkg, sqlfs, db.template, db.parse)
 }
 
 func (db *DefaultDB) Recover(errp *error) {
