@@ -187,6 +187,11 @@ func JsonTagAsFieldName(tag reflect.StructTag, fieldName string) bool {
 			return true
 		}
 	}
+	if asName, ok := tag.Lookup("as"); ok {
+		if fieldName == asName {
+			return true
+		}
+	}
 	return false
 }
 
