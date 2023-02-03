@@ -38,11 +38,28 @@ func (s *MapScanner) Scan(src any) error {
 		return nil
 	} else {
 		vt := s.Dest.Type().Elem()
-		dest := reflect.New(s.Column.ScanType()).Interface()
-		ConvertAssign(dest, src)
-		sc := scanTypeConvert(dest)
-		if sc.CanConvert(vt) {
-			s.Dest.SetMapIndex(reflect.ValueOf(s.Name), sc.Convert(vt))
+		if vt.Kind() == reflect.Interface {
+			if s.Column.ScanType().ConvertibleTo(vt) {
+				dest := reflect.New(s.Column.ScanType()).Interface()
+				ConvertAssign(dest, src)
+				sc := scanTypeConvert(dest)
+				s.Dest.SetMapIndex(reflect.ValueOf(s.Name), sc.Convert(vt))
+			}
+		} else {
+			dest := reflect.New(vt)
+			err := ConvertAssign(dest.Interface(), src)
+			if err != nil {
+				if s.Column.ScanType().ConvertibleTo(vt) {
+					dest := reflect.New(s.Column.ScanType()).Interface()
+					ConvertAssign(dest, src)
+					sc := scanTypeConvert(dest)
+					s.Dest.SetMapIndex(reflect.ValueOf(s.Name), sc.Convert(vt))
+				} else {
+					return err
+				}
+			} else {
+				s.Dest.SetMapIndex(reflect.ValueOf(s.Name), dest.Elem())
+			}
 		}
 		return nil
 	}
@@ -59,11 +76,28 @@ func (s *SliceScanner) Scan(src any) error {
 		return nil
 	} else {
 		vt := s.Dest.Type().Elem()
-		dest := reflect.New(s.Column.ScanType()).Interface()
-		ConvertAssign(dest, src)
-		sc := scanTypeConvert(dest)
-		if sc.CanConvert(vt) {
-			s.Dest.Index(s.Index).Set(sc.Convert(vt))
+		dest := reflect.New(vt)
+		if vt.Kind() == reflect.Interface {
+			if s.Column.ScanType().ConvertibleTo(vt) {
+				dest := reflect.New(s.Column.ScanType()).Interface()
+				ConvertAssign(dest, src)
+				sc := scanTypeConvert(dest)
+				s.Dest.Index(s.Index).Set(sc.Convert(vt))
+			}
+		} else {
+			err := ConvertAssign(dest.Interface(), src)
+			if err != nil {
+				if s.Column.ScanType().ConvertibleTo(vt) {
+					dest := reflect.New(s.Column.ScanType()).Interface()
+					ConvertAssign(dest, src)
+					sc := scanTypeConvert(dest)
+					s.Dest.Index(s.Index).Set(sc.Convert(vt))
+				} else {
+					return err
+				}
+			} else {
+				s.Dest.Index(s.Index).Set(dest.Elem())
+			}
 		}
 		return nil
 	}
