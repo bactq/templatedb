@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"reflect"
 	"time"
+	"unsafe"
 )
 
 type StructScanner struct {
@@ -16,10 +17,14 @@ func (s *StructScanner) Scan(src any) error {
 	if src == nil {
 		return nil
 	}
-	if s.Convert != nil {
-		return s.Convert(s.Dest.FieldByIndex(s.Index), src)
+	fv := s.Dest.FieldByIndex(s.Index)
+	if !fv.CanSet() {
+		fv = reflect.NewAt(fv.Type(), unsafe.Pointer(fv.UnsafeAddr())).Elem()
 	}
-	return ConvertAssign(s.Dest.FieldByIndex(s.Index).Addr().Interface(), src)
+	if s.Convert != nil {
+		return s.Convert(fv, src)
+	}
+	return ConvertAssign(fv.Addr().Interface(), src)
 }
 
 type MapScanner struct {
@@ -74,17 +79,11 @@ func (s *ParameterScanner) Scan(src any) error {
 	if src == nil {
 		return nil
 	} else {
-		vt := s.Dest.Type()
-		dest := reflect.New(s.Column.ScanType()).Interface()
-		ConvertAssign(dest, src)
-		sc := scanTypeConvert(dest)
+		s.Dest.Set(reflect.New(s.Dest.Type()).Elem())
 		if s.Convert != nil {
 			return s.Convert(s.Dest, src)
 		}
-		if sc.CanConvert(vt) {
-			s.Dest.Set(sc.Convert(vt))
-		}
-		return nil
+		return ConvertAssign(s.Dest.Addr().Interface(), src)
 	}
 }
 
