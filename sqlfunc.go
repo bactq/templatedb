@@ -61,7 +61,7 @@ func inParam(list reflect.Value, fieldNames ...any) (string, []any, error) {
 			}
 			switch item.Kind() {
 			case reflect.Struct:
-				tField, ok := template.GetFieldByName(item.Type(), fieldName)
+				tField, ok := template.GetFieldByName(item.Type(), fieldName, nil)
 				if ok {
 					field, err := item.FieldByIndexErr(tField.Index)
 					if err != nil {

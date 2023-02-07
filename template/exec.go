@@ -661,17 +661,38 @@ func (s *state) evalFunction(dot reflect.Value, node *parse.IdentifierNode, cmd 
 	return s.evalCall(dot, function, isBuiltin, cmd, name, args, final)
 }
 
-func GetFieldByName(t reflect.Type, fieldName string) (f reflect.StructField, ok bool) {
-	tField, ok := t.FieldByName(fieldName)
-	if ok {
-		return tField, ok
-	}
+func GetFieldByTag(t reflect.Type, fieldName string, scanNum map[string]int) (f reflect.StructField, ok bool) {
 	for i := 0; i < t.NumField(); i++ {
 		tf := t.Field(i)
 		if TagAsFieldName != nil && TagAsFieldName(tf.Tag, fieldName) {
 			return tf, true
 		}
+		if tf.Anonymous {
+			f, ok = GetFieldByTag(tf.Type, fieldName, scanNum)
+			if ok {
+				if _, ok := scanNum[f.Name]; ok {
+					if i <= scanNum[f.Name] {
+						continue
+					} else {
+						scanNum[f.Name] = i
+					}
+				} else {
+					scanNum[f.Name] = i
+				}
+				f.Index = append(tf.Index, f.Index...)
+				return
+			}
+		}
 	}
+	return
+}
+
+func GetFieldByName(t reflect.Type, fieldName string, scanNum map[string]int) (f reflect.StructField, ok bool) {
+	tField, ok := t.FieldByName(fieldName)
+	if ok {
+		return tField, ok
+	}
+	f, ok = GetFieldByTag(t, fieldName, scanNum)
 	return
 }
 
@@ -707,7 +728,7 @@ func (s *state) evalField(dot reflect.Value, fieldName string, node parse.Node, 
 	// It's not a method; must be a field of a struct or an element of a map.
 	switch receiver.Kind() {
 	case reflect.Struct:
-		tField, ok := GetFieldByName(receiver.Type(), fieldName)
+		tField, ok := GetFieldByName(receiver.Type(), fieldName, nil)
 		if ok {
 			field, err := receiver.FieldByIndexErr(tField.Index)
 			if !tField.IsExported() {
