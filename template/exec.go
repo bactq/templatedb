@@ -667,7 +667,7 @@ func GetFieldByTag(t reflect.Type, fieldName string, scanNum map[string]int) (f 
 		if TagAsFieldName != nil && TagAsFieldName(tf.Tag, fieldName) {
 			return tf, true
 		}
-		if tf.Anonymous {
+		if tf.Anonymous && tf.Type.Kind() == reflect.Struct {
 			f, ok = GetFieldByTag(tf.Type, fieldName, scanNum)
 			if ok {
 				if _, ok := scanNum[f.Name]; ok {
