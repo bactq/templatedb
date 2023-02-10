@@ -46,7 +46,8 @@ func inParam(list reflect.Value, fieldNames ...any) (string, []any, error) {
 	if list.Kind() == reflect.Slice || list.Kind() == reflect.Array {
 		sb := strings.Builder{}
 		sb.WriteString("in (")
-		var args []any = make([]any, list.Len())
+		var args []any = make([]any, 0, list.Len())
+		exists := make(map[any]any)
 		for i := 0; i < list.Len(); i++ {
 			if i > 0 {
 				sb.WriteByte(',')
@@ -67,7 +68,11 @@ func inParam(list reflect.Value, fieldNames ...any) (string, []any, error) {
 					if err != nil {
 						return "", nil, err
 					}
-					args[i] = field.Interface()
+					val := field.Interface()
+					if _, ok := exists[val]; !ok {
+						exists[val] = struct{}{}
+						args = append(args, val)
+					}
 				} else {
 					return "", nil, fmt.Errorf("in params : The attribute %s was not found in the structure %s.%s", fieldName, item.Type().PkgPath(), item.Type().Name())
 				}
@@ -75,7 +80,11 @@ func inParam(list reflect.Value, fieldNames ...any) (string, []any, error) {
 				if item.Type().Key().Kind() == reflect.String {
 					fieldValue := item.MapIndex(reflect.ValueOf(fieldName))
 					if fieldValue.IsValid() {
-						args[i] = fieldValue.Interface()
+						val := fieldValue.Interface()
+						if _, ok := exists[val]; !ok {
+							exists[val] = struct{}{}
+							args = append(args, val)
+						}
 					} else {
 						return "", nil, fmt.Errorf("in params : fieldValue in map[%s] IsValid", fieldName)
 					}
@@ -83,7 +92,11 @@ func inParam(list reflect.Value, fieldNames ...any) (string, []any, error) {
 					return "", nil, fmt.Errorf("in params : Map key Type is not string")
 				}
 			default:
-				args[i] = item.Interface()
+				val := item.Interface()
+				if _, ok := exists[val]; !ok {
+					exists[val] = struct{}{}
+					args = append(args, val)
+				}
 			}
 		}
 		sb.WriteString(")")
