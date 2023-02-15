@@ -212,13 +212,14 @@ func JsonConvertStruct(field reflect.Value, src any) error {
 	if src == nil {
 		return nil
 	}
-	if field.Kind() == reflect.Struct {
-		if field.Kind() == reflect.Pointer {
+	if field.Kind() == reflect.Pointer {
+		if field.IsNil() {
 			field.Set(reflect.New(field.Type().Elem()))
-		} else {
-			field = field.Addr()
 		}
-		return json.Unmarshal(src.([]byte), field.Interface())
+		field = field.Elem()
+	}
+	if field.Kind() == reflect.Struct || field.Kind() == reflect.Slice || field.Kind() == reflect.Map {
+		return json.Unmarshal(src.([]byte), field.Addr().Interface())
 	} else {
 		return scanner.ConvertAssign(field.Addr().Interface(), src)
 	}
