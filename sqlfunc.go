@@ -1,10 +1,13 @@
 package templatedb
 
 import (
+	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
+	"runtime"
 	"strings"
 
 	"github.com/tianxinzizhen/templatedb/scanner"
@@ -250,4 +253,26 @@ func AddTemplateFunc(key string, funcMethod any) error {
 		sqlFunc[key] = funcMethod
 	}
 	return nil
+}
+
+var RecoverPrintf func(format string, a ...any) (n int, err error)
+
+func recoverPrintf(err error) {
+	if RecoverPrintf != nil && err != nil {
+		var pc []uintptr = make([]uintptr, MaxStackLen)
+		n := runtime.Callers(3, pc[:])
+		frames := runtime.CallersFrames(pc[:n])
+		RecoverPrintf("%s \n", err)
+		for frame, more := frames.Next(); more; frame, more = frames.Next() {
+			RecoverPrintf("%s:%d \n", frame.File, frame.Line)
+		}
+	}
+}
+
+var MaxStackLen = 50
+
+type sqlDB interface {
+	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+	PrepareContext(ctx context.Context, query string) (*sql.Stmt, error)
 }
