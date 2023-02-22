@@ -279,9 +279,10 @@ func (s *state) walk(dot reflect.Value, node parse.Node) {
 			s.printValue(node, val)
 		}
 	case *parse.AtSignNode:
-		// Do not pop variables so they persist until next end.
-		// Also, if the action declares variables, don't print the result.
 		s.evalAtSign(dot, node)
+	case *parse.SqlParamNode:
+		s.wr.Write([]byte("?"))
+		s.args = append(s.args, struct{}{}) //使用空对象实现占位
 	case *parse.BreakNode:
 		panic(ErrWalkBreak)
 	case *parse.CommentNode:
