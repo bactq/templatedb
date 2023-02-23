@@ -140,7 +140,7 @@ func (db *DefaultDB) templateBuild(query string, params any) (sql string, args [
 		}
 		db.template[query] = templateSql
 	}
-	return templateSql.ExecuteBuilder(params)
+	return templateSql.ExecuteBuilder(params, nil)
 }
 
 func (db *DefaultDB) selectScanFunc(ctx context.Context, sdb sqlDB, params any, scanFunc any, name []any) {

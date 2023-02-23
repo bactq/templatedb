@@ -171,16 +171,16 @@ func (db *OptionDB) templateBuild(opSql string, opFuncPc uintptr, opFuncName str
 	if db.template == nil {
 		db.template = make(map[string]*template.Template)
 	}
+	var line int
 	if opFuncName == "" {
 		if opFuncPc == 0 {
-			opFuncPc, _, _, _ = runtime.Caller(3)
+			opFuncPc, _, line, _ = runtime.Caller(3)
 		}
 		opFuncName = runtime.FuncForPC(opFuncPc).Name()
 	}
 	tKey := fmt.Sprintf("%s:%s", opFuncName, opName)
 	templateSql, templateok := db.template[tKey]
 	if !templateok {
-		_, _, line, _ := runtime.Caller(3)
 		tKey = fmt.Sprintf("%s:%d", opFuncName, line)
 		templateSql, templateok = db.template[tKey]
 		if !templateok {
@@ -195,17 +195,7 @@ func (db *OptionDB) templateBuild(opSql string, opFuncPc uintptr, opFuncName str
 			db.template[tKey] = templateSql
 		}
 	}
-	sql, args, err := templateSql.ExecuteBuilder(opParams)
-	var opArgsI int
-	for i, v := range args {
-		if v == struct{}{} {
-			if opArgsI == len(opArgs) {
-				return "", nil, fmt.Errorf("the sql parameter[%d] is missing", opArgsI)
-			}
-			args[i] = opArgs[opArgsI]
-			opArgsI++
-		}
-	}
+	sql, args, err := templateSql.ExecuteBuilder(opParams, opArgs)
 	return sql, args, err
 }
 

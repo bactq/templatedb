@@ -43,6 +43,8 @@ type state struct {
 	vars  []variable // push-down stack of variable values.
 	depth int        // the height of the stack of executing templates.
 	args  []any      // sql参数列表
+	qi    int
+	qArgs []any
 }
 
 // variable holds the dynamic value of a variable such as $, $x etc.
@@ -190,7 +192,7 @@ func (t *Template) ExecuteTemplate(wr io.Writer, name string, data any) ([]any, 
 	if tmpl == nil {
 		return nil, fmt.Errorf("template: no template %q associated with template %q", name, t.name)
 	}
-	return tmpl.Execute(wr, data)
+	return tmpl.Execute(wr, data, nil)
 }
 
 // Execute applies a parsed template to the specified data object,
@@ -203,29 +205,30 @@ func (t *Template) ExecuteTemplate(wr io.Writer, name string, data any) ([]any, 
 //
 // If data is a reflect.Value, the template applies to the concrete
 // value that the reflect.Value holds, as in fmt.Print.
-func (t *Template) Execute(wr io.Writer, data any) ([]any, error) {
-	return t.execute(wr, data)
+func (t *Template) Execute(wr io.Writer, data any, qArgs []any) ([]any, error) {
+	return t.execute(wr, data, qArgs)
 }
 
-func (t *Template) ExecuteBuilder(data any) (string, []any, error) {
+func (t *Template) ExecuteBuilder(data any, qArgs []any) (string, []any, error) {
 	builder := &strings.Builder{}
-	args, err := t.execute(builder, data)
+	args, err := t.execute(builder, data, qArgs)
 	if err != nil {
 		return "", nil, err
 	}
 	return builder.String(), args, nil
 }
 
-func (t *Template) execute(wr io.Writer, data any) (args []any, err error) {
+func (t *Template) execute(wr io.Writer, data any, qArgs []any) (args []any, err error) {
 	defer errRecover(&err)
 	value, ok := data.(reflect.Value)
 	if !ok {
 		value = reflect.ValueOf(data)
 	}
 	state := &state{
-		tmpl: t,
-		wr:   wr,
-		vars: []variable{{"$", value}},
+		tmpl:  t,
+		wr:    wr,
+		vars:  []variable{{"$", value}},
+		qArgs: qArgs,
 	}
 	if t.Tree == nil || t.Root == nil {
 		state.errorf("%q is an incomplete or empty template", t.Name())
@@ -282,7 +285,11 @@ func (s *state) walk(dot reflect.Value, node parse.Node) {
 		s.evalAtSign(dot, node)
 	case *parse.SqlParamNode:
 		s.wr.Write([]byte("?"))
-		s.args = append(s.args, struct{}{}) //使用空对象实现占位
+		if s.qi < len(s.qArgs) {
+			s.args = append(s.args, s.qArgs[s.qi])
+		} else {
+			panic(fmt.Errorf("the sql parameter[%d] is missing", s.qi))
+		}
 	case *parse.BreakNode:
 		panic(ErrWalkBreak)
 	case *parse.CommentNode:
