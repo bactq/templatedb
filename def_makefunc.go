@@ -21,7 +21,6 @@ const (
 	SelectAction
 	SelectScanAction
 	ExecNoResultAction
-	SelectParamAction
 )
 
 type DBFunc[T any] struct {
@@ -33,9 +32,5 @@ type DBFunc[T any] struct {
 
 type Result struct {
 	LastInsertId int64
-	RowsAffected int64
-}
-
-type PrepareResult struct {
 	RowsAffected int64
 }

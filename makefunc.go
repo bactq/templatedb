@@ -10,6 +10,10 @@ import (
 	"github.com/tianxinzizhen/templatedb/util"
 )
 
+type PrepareResult struct {
+	RowsAffected int64
+}
+
 // 自动初始化构造方法
 func DBFuncInit[T any](dbFuncStruct *T, tdb TemplateDB) (*T, error) {
 	dv, isNil := util.Indirect(reflect.ValueOf(dbFuncStruct))

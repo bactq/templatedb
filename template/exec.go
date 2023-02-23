@@ -286,7 +286,12 @@ func (s *state) walk(dot reflect.Value, node parse.Node) {
 	case *parse.SqlParamNode:
 		s.wr.Write([]byte("?"))
 		if s.qi < len(s.qArgs) {
-			s.args = append(s.args, s.qArgs[s.qi])
+			arg := s.qArgs[s.qi]
+			s.qi++ //索引增加
+			if s.tmpl.sqlParams != nil {
+				arg = s.tmpl.sqlParams(reflect.ValueOf(arg))
+			}
+			s.args = append(s.args, arg)
 		} else {
 			panic(fmt.Errorf("the sql parameter[%d] is missing", s.qi))
 		}

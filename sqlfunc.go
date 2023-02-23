@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/tianxinzizhen/templatedb/scanner"
 	"github.com/tianxinzizhen/templatedb/template"
@@ -17,6 +18,8 @@ import (
 )
 
 var sqlFunc template.FuncMap = make(template.FuncMap)
+
+var sqlParamType map[reflect.Type]struct{} = make(map[reflect.Type]struct{})
 
 var SqlEscapeBytesBackslash = false
 
@@ -244,6 +247,8 @@ func init() {
 	template.TagAsFieldName = JsonTagAsFieldName
 	//mysql的json字段处理
 	AddScanConvertDatabaseTypeFunc("JSON", JsonConvertStruct)
+	//添加时间为sql参数类型
+	AddSqlParamType(reflect.TypeOf(time.Time{}))
 }
 
 func AddTemplateFunc(key string, funcMethod any) error {
@@ -253,6 +258,9 @@ func AddTemplateFunc(key string, funcMethod any) error {
 		sqlFunc[key] = funcMethod
 	}
 	return nil
+}
+func AddSqlParamType(t reflect.Type) {
+	sqlParamType[t] = struct{}{}
 }
 
 var RecoverPrintf func(format string, a ...any) (n int, err error)

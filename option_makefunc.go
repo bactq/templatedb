@@ -76,14 +76,11 @@ func OptionDBFuncInit[T any](dbFuncStruct *T, tdb TemplateOptionDB) (*T, error) 
 					action = SelectScanAction
 					break
 				}
-				if ditIni.Kind() != reflect.Map && ditIni.Kind() != reflect.Struct && ditIni.Kind() != reflect.Slice {
-					action = SelectParamAction
-				}
 			}
 			if dit.NumOut() > 0 {
 				if dit.Out(0) == ResultType || dit.Out(0) == ResultType.Elem() {
 					action = ExecAction
-				} else if !dit.Out(0).Implements(errorType) && action != SelectParamAction {
+				} else if !dit.Out(0).Implements(errorType) {
 					action = SelectAction
 				}
 			}
@@ -102,10 +99,21 @@ func optionMakeDBFunc(t reflect.Type, tdb TemplateOptionDB, action Operation, fu
 				op.SetContext(v.Interface().(context.Context))
 			} else if v.Type().Kind() == reflect.Func {
 				op.SetResult(v.Interface())
-			} else if action == SelectParamAction {
-				opArgs = append(opArgs, v.Interface())
 			} else {
-				op.SetParam(v.Interface())
+				pvt := v.Type()
+				if pvt.Kind() == reflect.Pointer {
+					pvt = pvt.Elem()
+				}
+				switch pvt.Kind() {
+				case reflect.Map, reflect.Slice, reflect.Array, reflect.Struct:
+					if _, ok := sqlParamType[pvt]; ok {
+						opArgs = append(opArgs, v.Interface())
+					} else {
+						op.SetParam(v.Interface())
+					}
+				default:
+					opArgs = append(opArgs, v.Interface())
+				}
 			}
 		}
 		op.SetArgs(opArgs...)
