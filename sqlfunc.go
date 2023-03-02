@@ -251,6 +251,7 @@ func init() {
 	AddTemplateFunc("sqlEscape", sqlEscape)
 	AddTemplateFunc("orNull", orNull)
 	AddTemplateFunc("marshal", marshal)
+	AddTemplateFunc("json", marshal)
 	//模版@#号字符串拼接时对字段值转化成sql字符串函数
 	template.SqlEscape = SqlEscape
 	//使用tag为字段取别名
