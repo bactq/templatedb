@@ -221,7 +221,10 @@ func (db *OptionDB) query(sdb sqlDB, op *ExecOption) any {
 	if rt.Kind() == reflect.Func {
 		if rt.NumIn() == 1 {
 			ft := rt.In(0)
-			dest := newScanDest(columns, ft)
+			dest, err := newScanDest(columns, ft)
+			if err != nil {
+				panic(err)
+			}
 			for rows.Next() {
 				receiver := newReceiver(rt, columns, dest)
 				err = rows.Scan(dest...)
@@ -231,7 +234,10 @@ func (db *OptionDB) query(sdb sqlDB, op *ExecOption) any {
 				rv.Call([]reflect.Value{receiver})
 			}
 		} else {
-			dest := newScanDest(columns, rt)
+			dest, err := newScanDest(columns, rt)
+			if err != nil {
+				panic(err)
+			}
 			for rows.Next() {
 				receiver := newReceiver(rt, columns, dest)
 				err = rows.Scan(dest...)
@@ -254,7 +260,10 @@ func (db *OptionDB) query(sdb sqlDB, op *ExecOption) any {
 				rv = reflect.New(rt).Elem()
 			}
 		}
-		dest := newScanDest(columns, st)
+		dest, err := newScanDest(columns, st)
+		if err != nil {
+			panic(err)
+		}
 		for rows.Next() {
 			receiver := newReceiver(st, columns, dest)
 			err = rows.Scan(dest...)

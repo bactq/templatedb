@@ -31,7 +31,7 @@ func AddScanConvertDatabaseTypeFunc(key string, funcMethod func(field reflect.Va
 	scanConvertByDatabaseType[key] = funcMethod
 }
 
-func newScanDest(columns []*sql.ColumnType, t reflect.Type) []any {
+func newScanDest(columns []*sql.ColumnType, t reflect.Type) ([]any, error) {
 	if t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
@@ -44,26 +44,26 @@ func newScanDest(columns []*sql.ColumnType, t reflect.Type) []any {
 			if ok {
 				indexMap[i] = f.Index
 			} else {
-				panic(fmt.Errorf("类型%v无法扫描字段：%s", t, item.Name()))
+				return nil, fmt.Errorf("类型%v无法扫描字段：%s", t, item.Name())
 			}
 		}
 		for si, v := range columns {
 			destSlice = append(destSlice, &scanner.StructScanner{Convert: scanConvertByDatabaseType[v.DatabaseTypeName()], Index: indexMap[si]})
 		}
-		return destSlice
+		return destSlice, nil
 	} else if t.Kind() == reflect.Map {
 		if t.Key().Kind() != reflect.String {
-			panic(fmt.Errorf("scan map key type not string"))
+			return nil, fmt.Errorf("scan map key type not string")
 		}
 		for _, v := range columns {
 			destSlice = append(destSlice, &scanner.MapScanner{Column: v, Name: v.Name()})
 		}
-		return destSlice
+		return destSlice, nil
 	} else if t.Kind() == reflect.Slice {
 		for i, v := range columns {
 			destSlice = append(destSlice, &scanner.SliceScanner{Column: v, Index: i})
 		}
-		return destSlice
+		return destSlice, nil
 	} else if t.Kind() == reflect.Func {
 		if t.NumIn() == 0 && t.NumOut() > 0 {
 			i := 0
@@ -73,7 +73,7 @@ func newScanDest(columns []*sql.ColumnType, t reflect.Type) []any {
 			for ; i < len(columns); i++ {
 				destSlice = append(destSlice, getTempScanDest(columns[i].ScanType()))
 			}
-			return destSlice
+			return destSlice, nil
 		} else if t.NumOut() == 0 && t.NumIn() > 0 {
 			i := 0
 			for ; i < t.NumIn(); i++ {
@@ -82,9 +82,9 @@ func newScanDest(columns []*sql.ColumnType, t reflect.Type) []any {
 			for ; i < len(columns); i++ {
 				destSlice = append(destSlice, getTempScanDest(columns[i].ScanType()))
 			}
-			return destSlice
+			return destSlice, nil
 		} else {
-			panic(fmt.Errorf("scan func In(%d) Out(%d) not supported", t.NumIn(), t.NumOut()))
+			return nil, fmt.Errorf("scan func In(%d) Out(%d) not supported", t.NumIn(), t.NumOut())
 		}
 	} else {
 		if len(columns) > 0 {
@@ -93,7 +93,7 @@ func newScanDest(columns []*sql.ColumnType, t reflect.Type) []any {
 				destSlice = append(destSlice, getTempScanDest(columns[i].ScanType()))
 			}
 		}
-		return destSlice
+		return destSlice, nil
 	}
 }
 
@@ -189,7 +189,10 @@ func DBConvertRowsCap[T any](rows *sql.Rows, cap int) (T, error) {
 	} else {
 		ret = reflect.New(t).Elem()
 	}
-	dest := newScanDest(columns, st)
+	dest, err := newScanDest(columns, st)
+	if err != nil {
+		return reflect.Zero(t).Interface().(T), err
+	}
 	for rows.Next() {
 		receiver := newReceiver(st, columns, dest)
 		err = rows.Scan(dest...)
@@ -214,7 +217,10 @@ func DBConvertRow[T any](rows *sql.Rows) (T, error) {
 	if t.Kind() == reflect.Slice {
 		return reflect.Zero(t).Interface().(T), fmt.Errorf("DBConvertRow not Convert Slice")
 	}
-	dest := newScanDest(columns, t)
+	dest, err := newScanDest(columns, t)
+	if err != nil {
+		return reflect.Zero(t).Interface().(T), err
+	}
 	receiver := newReceiver(t, columns, dest)
 	err = rows.Scan(dest...)
 	if err != nil {
