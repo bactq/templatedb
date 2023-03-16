@@ -32,7 +32,7 @@ func AddScanConvertDatabaseTypeFunc(key string, funcMethod func(field reflect.Va
 }
 
 func newScanDest(columns []*sql.ColumnType, t reflect.Type) ([]any, error) {
-	if t.Kind() == reflect.Pointer {
+	for t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
 	destSlice := make([]any, 0, len(columns))
@@ -97,17 +97,18 @@ func newScanDest(columns []*sql.ColumnType, t reflect.Type) ([]any, error) {
 	}
 }
 
-func newReceiver(rt reflect.Type, columns []*sql.ColumnType, scanRows []any) reflect.Value {
-	t := rt
-	if rt.Kind() == reflect.Pointer {
+func newReceiver(t reflect.Type, columns []*sql.ColumnType, scanRows []any) reflect.Value {
+	ret := reflect.New(t).Elem()
+	val := ret
+	for t.Kind() == reflect.Pointer {
 		t = t.Elem()
+		ret.Set(reflect.New(t))
+		ret = ret.Elem()
 	}
-	var ret reflect.Value = reflect.New(t)
 	if t.Kind() == reflect.Struct {
-		dv := ret.Elem()
 		for _, v := range scanRows {
 			if vi, ok := v.(*scanner.StructScanner); ok {
-				vi.Dest = dv
+				vi.Dest = ret
 			}
 		}
 	} else if t.Kind() == reflect.Map && t.Key().Kind() == reflect.String {
@@ -117,7 +118,6 @@ func newReceiver(rt reflect.Type, columns []*sql.ColumnType, scanRows []any) ref
 				vi.Dest = dest
 			}
 		}
-		ret.Elem().Set(dest)
 	} else if t.Kind() == reflect.Slice {
 		dest := reflect.MakeSlice(reflect.SliceOf(t.Elem()), len(columns), len(columns))
 		for _, v := range scanRows {
@@ -125,7 +125,6 @@ func newReceiver(rt reflect.Type, columns []*sql.ColumnType, scanRows []any) ref
 				vi.Dest = dest
 			}
 		}
-		ret.Elem().Set(dest)
 	} else if t.Kind() == reflect.Func {
 		if t.NumIn() == 0 && t.NumOut() > 0 {
 			var results []reflect.Value = make([]reflect.Value, 0, t.NumOut())
@@ -140,7 +139,7 @@ func newReceiver(rt reflect.Type, columns []*sql.ColumnType, scanRows []any) ref
 					vi.Dest = results[i]
 				}
 			}
-			ret.Elem().Set(dest)
+			ret.Set(dest)
 		} else {
 			var results []reflect.Value = make([]reflect.Value, 0, t.NumIn())
 			for i := 0; i < t.NumIn(); i++ {
@@ -154,77 +153,72 @@ func newReceiver(rt reflect.Type, columns []*sql.ColumnType, scanRows []any) ref
 			return reflect.ValueOf(results)
 		}
 	} else {
-		dest := ret.Elem()
 		for _, v := range scanRows {
 			if vi, ok := v.(*scanner.ParameterScanner); ok {
-				vi.Dest = dest
+				vi.Dest = ret
 			}
 		}
 	}
-	if rt.Kind() == reflect.Pointer {
-		return ret
-	} else {
-		return ret.Elem()
-	}
+	return val
 }
 
-func DBConvertRows[T any](rows *sql.Rows) (T, error) {
-	return DBConvertRowsCap[T](rows, 0)
-}
+// func DBConvertRows[T any](rows *sql.Rows) (T, error) {
+// 	return DBConvertRowsCap[T](rows, 0)
+// }
 
-func DBConvertRowsCap[T any](rows *sql.Rows, cap int) (T, error) {
-	t := reflect.TypeOf((*T)(nil)).Elem()
-	columns, err := rows.ColumnTypes()
-	if err != nil {
-		return reflect.Zero(t).Interface().(T), err
-	}
-	var ret reflect.Value
-	st := t
-	if t.Kind() == reflect.Slice {
-		if cap <= 0 {
-			cap = 10
-		}
-		ret = reflect.MakeSlice(t, 0, cap)
-		st = t.Elem()
-	} else {
-		ret = reflect.New(t).Elem()
-	}
-	dest, err := newScanDest(columns, st)
-	if err != nil {
-		return reflect.Zero(t).Interface().(T), err
-	}
-	for rows.Next() {
-		receiver := newReceiver(st, columns, dest)
-		err = rows.Scan(dest...)
-		if err != nil {
-			return reflect.Zero(t).Interface().(T), err
-		}
-		if t.Kind() == reflect.Slice {
-			ret = reflect.Append(ret, receiver)
-		} else {
-			return receiver.Interface().(T), nil
-		}
-	}
-	return ret.Interface().(T), nil
-}
+// func DBConvertRowsCap[T any](rows *sql.Rows, cap int) (T, error) {
+// 	t := reflect.TypeOf((*T)(nil)).Elem()
+// 	columns, err := rows.ColumnTypes()
+// 	if err != nil {
+// 		return reflect.Zero(t).Interface().(T), err
+// 	}
+// 	var ret reflect.Value
+// 	st := t
+// 	if t.Kind() == reflect.Slice {
+// 		if cap <= 0 {
+// 			cap = 10
+// 		}
+// 		ret = reflect.MakeSlice(t, 0, cap)
+// 		st = t.Elem()
+// 	} else {
+// 		ret = reflect.New(t).Elem()
+// 	}
+// 	dest, err := newScanDest(columns, st)
+// 	if err != nil {
+// 		return reflect.Zero(t).Interface().(T), err
+// 	}
+// 	for rows.Next() {
+// 		receiver := newReceiver(st, columns, dest)
+// 		err = rows.Scan(dest...)
+// 		if err != nil {
+// 			return reflect.Zero(t).Interface().(T), err
+// 		}
+// 		if t.Kind() == reflect.Slice {
+// 			ret = reflect.Append(ret, receiver)
+// 		} else {
+// 			return receiver.Interface().(T), nil
+// 		}
+// 	}
+// 	return ret.Interface().(T), nil
+// }
 
-func DBConvertRow[T any](rows *sql.Rows) (T, error) {
-	t := reflect.TypeOf((*T)(nil)).Elem()
-	columns, err := rows.ColumnTypes()
-	if err != nil {
-		return reflect.Zero(t).Interface().(T), err
-	}
-	if t.Kind() == reflect.Slice {
-		return reflect.Zero(t).Interface().(T), fmt.Errorf("DBConvertRow not Convert Slice")
-	}
-	dest, err := newScanDest(columns, t)
-	if err != nil {
-		return reflect.Zero(t).Interface().(T), err
-	}
-	receiver := newReceiver(t, columns, dest)
-	err = rows.Scan(dest...)
-	if err != nil {
-		return reflect.Zero(t).Interface().(T), err
-	}
-	return receiver.Interface().(T), nil
-}
+// func DBConvertRow[T any](rows *sql.Rows) (T, error) {
+// 	t := reflect.TypeOf((*T)(nil)).Elem()
+// 	columns, err := rows.ColumnTypes()
+// 	if err != nil {
+// 		return reflect.Zero(t).Interface().(T), err
+// 	}
+// 	if t.Kind() == reflect.Slice {
+// 		return reflect.Zero(t).Interface().(T), fmt.Errorf("DBConvertRow not Convert Slice")
+// 	}
+// 	dest, err := newScanDest(columns, t)
+// 	if err != nil {
+// 		return reflect.Zero(t).Interface().(T), err
+// 	}
+// 	receiver := newReceiver(t, columns, dest)
+// 	err = rows.Scan(dest...)
+// 	if err != nil {
+// 		return reflect.Zero(t).Interface().(T), err
+// 	}
+// 	return receiver.Interface().(T), nil
+// }

@@ -93,13 +93,15 @@ type OptionDB struct {
 }
 
 type optionActionDB interface {
-	query(sdb sqlDB, op *ExecOption) any
-	exec(sdb sqlDB, op *ExecOption) (lastInsertId, rowsAffected int64)
+	query(sdb sqlDB, op *ExecOption) (any, error)
+	exec(sdb sqlDB, op *ExecOption) (lastInsertId, rowsAffected int64, err error)
 }
 type TemplateOptionDB interface {
-	Query(op *ExecOption) any
+	Query(op *ExecOption) (any, error)
+	TQuery(op *ExecOption) any
 
-	Exec(op *ExecOption) (lastInsertId, rowsAffected int64)
+	Exec(op *ExecOption) (lastInsertId, rowsAffected int64, err error)
+	TExec(op *ExecOption) (lastInsertId, rowsAffected int64)
 
 	Prepare(query string) (*sql.Stmt, error)
 
@@ -199,22 +201,22 @@ func (db *OptionDB) templateBuild(opSql string, opFuncPc uintptr, opFuncName str
 	return sql, args, err
 }
 
-func (db *OptionDB) query(sdb sqlDB, op *ExecOption) any {
+func (db *OptionDB) query(sdb sqlDB, op *ExecOption) (any, error) {
 	sql, args, err := db.templateBuild(op.Sql, op.FuncPC, op.FuncName, op.Name, op.Param, op.Args)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	if op.Ctx == nil {
 		op.Ctx = context.Background()
 	}
 	rows, err := sdb.QueryContext(op.Ctx, sql, args...)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	defer rows.Close()
 	columns, err := rows.ColumnTypes()
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	rt := reflect.TypeOf(op.Result)
 	rv := reflect.ValueOf(op.Result)
@@ -223,90 +225,130 @@ func (db *OptionDB) query(sdb sqlDB, op *ExecOption) any {
 			ft := rt.In(0)
 			dest, err := newScanDest(columns, ft)
 			if err != nil {
-				panic(err)
+				return nil, err
 			}
 			for rows.Next() {
 				receiver := newReceiver(rt, columns, dest)
 				err = rows.Scan(dest...)
 				if err != nil {
-					panic(err)
+					return nil, err
 				}
 				rv.Call([]reflect.Value{receiver})
 			}
 		} else {
 			dest, err := newScanDest(columns, rt)
 			if err != nil {
-				panic(err)
+				return nil, err
 			}
 			for rows.Next() {
 				receiver := newReceiver(rt, columns, dest)
 				err = rows.Scan(dest...)
 				if err != nil {
-					panic(err)
+					return nil, err
 				}
-				rv.Call(receiver.Interface().([]reflect.Value))
+				if rt.NumIn() > 0 {
+					rv.Call(receiver.Interface().([]reflect.Value))
+				} else {
+					return receiver.Interface(), nil
+				}
+
 			}
 		}
-		return nil
+		return nil, nil
 	} else {
+		for rt.Kind() == reflect.Pointer {
+			rt = rt.Elem()
+			if rv.IsNil() {
+				if rv.CanSet() {
+					rv.Set(reflect.New(rt))
+				} else {
+					rv = reflect.New(rt)
+				}
+			}
+			rv = rv.Elem()
+		}
 		st := rt
 		if rt.Kind() == reflect.Slice {
 			if rv.IsNil() {
-				rv = reflect.MakeSlice(rt, 0, 10)
+				if rv.CanSet() {
+					rv.Set(reflect.MakeSlice(rt, 0, 10))
+				} else {
+					rv = reflect.MakeSlice(rt, 0, 10)
+				}
 			}
-			st = rt.Elem()
-		} else {
-			if rt.Kind() == reflect.Pointer && rv.IsNil() {
-				rv = reflect.New(rt).Elem()
-			}
+			rt = rt.Elem()
 		}
-		dest, err := newScanDest(columns, st)
+		dest, err := newScanDest(columns, rt)
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 		for rows.Next() {
-			receiver := newReceiver(st, columns, dest)
+			row := newReceiver(rt, columns, dest)
 			err = rows.Scan(dest...)
 			if err != nil {
-				panic(err)
+				return nil, err
 			}
-			if rt.Kind() == reflect.Slice {
-				rv = reflect.Append(rv, receiver)
+			if rv.CanSet() {
+				if st.Kind() == reflect.Slice {
+					rv.Set(reflect.Append(rv, row))
+				} else {
+					rv.Set(row)
+					break
+				}
 			} else {
-				return receiver.Interface()
+				if st.Kind() == reflect.Slice {
+					rv = reflect.Append(rv, row)
+				} else {
+					rv = row
+					break
+				}
 			}
 		}
-		return rv.Interface()
+		return rv.Interface(), nil
 	}
 }
 
-func (db *OptionDB) exec(sdb sqlDB, op *ExecOption) (lastInsertId, rowsAffected int64) {
+func (db *OptionDB) exec(sdb sqlDB, op *ExecOption) (lastInsertId, rowsAffected int64, err error) {
 	sql, args, err := db.templateBuild(op.Sql, op.FuncPC, op.FuncName, op.Name, op.Param, op.Args)
 	if err != nil {
-		panic(err)
+		return 0, 0, err
 	}
 	if op.Ctx == nil {
 		op.Ctx = context.Background()
 	}
 	result, err := sdb.ExecContext(op.Ctx, sql, args...)
 	if err != nil {
-		panic(err)
+		return 0, 0, err
 	}
 	lastid, err := result.LastInsertId()
 	if err != nil {
-		panic(err)
+		return 0, 0, err
 	}
 	affected, err := result.RowsAffected()
 	if err != nil {
-		panic(err)
+		return 0, 0, err
 	}
-	return lastid, affected
+	return lastid, affected, nil
 }
-func (db *OptionDB) Query(op *ExecOption) any {
+func (db *OptionDB) Query(op *ExecOption) (any, error) {
 	return db.query(db.sqlDB, op)
 }
-func (db *OptionDB) Exec(op *ExecOption) (lastInsertId, rowsAffected int64) {
+func (db *OptionDB) Exec(op *ExecOption) (lastInsertId, rowsAffected int64, err error) {
 	return db.exec(db.sqlDB, op)
+}
+func (db *OptionDB) TQuery(op *ExecOption) any {
+	rows, err := db.query(db.sqlDB, op)
+	if err != nil {
+		panic(err)
+	}
+	return rows
+}
+func (db *OptionDB) TExec(op *ExecOption) (lastInsertId, rowsAffected int64) {
+	lastInsertId, rowsAffected, err := db.exec(db.sqlDB, op)
+	if err != nil {
+		panic(err)
+	}
+	return
 }
 func (db *OptionDB) Prepare(query string) (*sql.Stmt, error) {
 	return db.sqlDB.Prepare(query)
@@ -353,12 +395,25 @@ func (tx *OptionTxDB) AutoCommit(errp *error) {
 	}
 }
 
-func (db *OptionTxDB) Query(op *ExecOption) any {
+func (db *OptionTxDB) Query(op *ExecOption) (any, error) {
 	return db.query(db.tx, op)
 }
-
-func (db *OptionTxDB) Exec(op *ExecOption) (lastInsertId, rowsAffected int64) {
+func (db *OptionTxDB) Exec(op *ExecOption) (lastInsertId, rowsAffected int64, err error) {
 	return db.exec(db.tx, op)
+}
+func (db *OptionTxDB) TQuery(op *ExecOption) any {
+	rows, err := db.query(db.tx, op)
+	if err != nil {
+		panic(err)
+	}
+	return rows
+}
+func (db *OptionTxDB) TExec(op *ExecOption) (lastInsertId, rowsAffected int64) {
+	lastInsertId, rowsAffected, err := db.exec(db.tx, op)
+	if err != nil {
+		panic(err)
+	}
+	return
 }
 
 func (db *OptionTxDB) Prepare(query string) (*sql.Stmt, error) {
