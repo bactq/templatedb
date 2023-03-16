@@ -35,7 +35,7 @@ type Test struct{
 * SELECT LIST
 ```go
     defer db.Recover(&err) 
-	list:=tdb.Query(&templatedb.ExecOption{
+	list:=tdb.TQuery(&templatedb.ExecOption{
 		Sql: "select UserId, Name FROM tbl_test where UserId=? and Name=@Name",
         Args:[]any{1},
         Param:map[string]any{"Name":"test"},
@@ -45,7 +45,7 @@ type Test struct{
 * SELECT ONE
 ```go
     defer db.Recover(&err) 
-	t:=tdb.Query(&templatedb.ExecOption{
+	t:=tdb.TQuery(&templatedb.ExecOption{
 		Sql: `select UserId, Name FROM tbl_test where UserId=?
         {if .Name}
          and Name=@Name
@@ -59,7 +59,7 @@ type Test struct{
 * SCAN FUNC
 ```go
     defer db.Recover(&err) 
-	tdb.Query(&templatedb.ExecOption{
+	tdb.TQuery(&templatedb.ExecOption{
 		Sql: `select UserId, Name FROM tbl_test where UserId=? 
         {if .Name}
          and Name={param .Name}
