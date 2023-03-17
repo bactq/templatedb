@@ -44,7 +44,7 @@ func TestOptionSelect(t *testing.T) {
 		t.Error(err)
 	}
 	//查询多条时使用的行来判断不同的sql语句
-	rr := &[]**Info{}
+	rr := &[]*Info{}
 	db.Query(&templatedb.ExecOption{
 		Sql:    "select UserId, Name FROM tbl_test",
 		Result: &rr,
@@ -54,10 +54,10 @@ func TestOptionSelect(t *testing.T) {
 	}
 	ret := db.TQuery(&templatedb.ExecOption{
 		Sql:    "select Name FROM tbl_test",
-		Result: (*[]**Info)(nil),
-	}).([]**Info)
+		Result: (*[]*Info)(nil),
+	}).(*[]*Info)
 	fmt.Println(ret)
-	for _, v := range ret {
+	for _, v := range *ret {
 		fmt.Printf("%#v", *v)
 	}
 }
@@ -101,18 +101,18 @@ func TestOptionSelectFunc(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	var aa func() (UserId, Name string)
+	var aa []func() (UserId, Name string)
 	//查询多条时使用的行来判断不同的sql语句
 	ret := db.TQuery(&templatedb.ExecOption{
 		Sql:    "select UserId, Name FROM tbl_test ",
 		Result: aa,
 		Args:   []any{1},
 		Param:  Info{Name: "dd"},
-	}).(func() (UserId, Name string))
+	}).([]func() (UserId, Name string))
 	if err != nil {
 		t.Error(err)
 	}
-	UserId, Name := ret()
+	UserId, Name := ret[0]()
 	fmt.Printf("%s,%s", UserId, Name)
 }
 
@@ -124,11 +124,12 @@ func TestOptionSelectXml(t *testing.T) {
 	//查询多条时使用的行来判断不同的sql语句
 	ret := db.TQuery(&templatedb.ExecOption{
 		FuncPC: templatedb.FuncPC(TestOptionSelectXml),
-		Result: []*Info{},
+		Result: ([]Info)(nil),
 		Args:   []any{1},
 		Param:  Info{Name: "dd"},
-	}).([]*Info)
-	for _, v := range ret {
-		fmt.Println(v)
-	}
+	}).([]Info)
+	// for _, v := range ret {
+	// 	fmt.Println(v)
+	// }
+	fmt.Println(ret)
 }

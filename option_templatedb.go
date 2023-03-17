@@ -257,15 +257,24 @@ func (db *OptionDB) query(sdb sqlDB, op *ExecOption) (any, error) {
 		return nil, nil
 	} else {
 		for rt.Kind() == reflect.Pointer {
-			rt = rt.Elem()
 			if rv.IsNil() {
-				if rv.CanSet() {
-					rv.Set(reflect.New(rt))
+				var tv reflect.Value
+				if rt.Elem().Kind() == reflect.Slice {
+					tv = reflect.NewAt(rt.Elem(), reflect.MakeSlice(rt.Elem(), 0, 10).UnsafePointer())
 				} else {
-					rv = reflect.New(rt)
+					tv = reflect.New(rt).Elem()
+				}
+				if rv.CanSet() {
+					rv.Set(tv)
+				} else {
+					rv = tv
 				}
 			}
+			rt = rt.Elem()
 			rv = rv.Elem()
+			if rv.Kind() == 0 {
+				break
+			}
 		}
 		st := rt
 		if rt.Kind() == reflect.Slice {
@@ -273,7 +282,7 @@ func (db *OptionDB) query(sdb sqlDB, op *ExecOption) (any, error) {
 				if rv.CanSet() {
 					rv.Set(reflect.MakeSlice(rt, 0, 10))
 				} else {
-					rv = reflect.MakeSlice(rt, 0, 10)
+					rv = reflect.NewAt(rt, reflect.MakeSlice(rt, 0, 10).UnsafePointer()).Elem()
 				}
 			}
 			rt = rt.Elem()
@@ -288,20 +297,18 @@ func (db *OptionDB) query(sdb sqlDB, op *ExecOption) (any, error) {
 			if err != nil {
 				return nil, err
 			}
-			if rv.CanSet() {
-				if st.Kind() == reflect.Slice {
-					rv.Set(reflect.Append(rv, row))
-				} else {
-					rv.Set(row)
-					break
-				}
+			if st.Kind() == reflect.Slice {
+				rv.Set(reflect.Append(rv, row))
 			} else {
-				if st.Kind() == reflect.Slice {
-					rv = reflect.Append(rv, row)
-				} else {
-					rv = row
-					break
-				}
+				rv.Set(row)
+				break
+			}
+		}
+		for reflect.PtrTo(rv.Type()) != reflect.PtrTo(reflect.TypeOf(op.Result)) {
+			if rv.CanAddr() {
+				rv = rv.Addr()
+			} else {
+				break
 			}
 		}
 		return rv.Interface(), nil
