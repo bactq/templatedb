@@ -34,6 +34,7 @@ type Test struct{
 ```
 * SELECT LIST
 ```go
+    //接收错误
     defer db.Recover(&err) 
 	list:=tdb.TQuery(&templatedb.ExecOption{
 		Sql: "select UserId, Name FROM tbl_test where UserId=? and Name=@Name",
@@ -44,6 +45,7 @@ type Test struct{
 ```
 * SELECT ONE
 ```go
+    //接收错误
     defer db.Recover(&err) 
 	t:=tdb.TQuery(&templatedb.ExecOption{
 		Sql: `select UserId, Name FROM tbl_test where UserId=?
@@ -58,6 +60,7 @@ type Test struct{
 ```
 * SCAN FUNC
 ```go
+    //接收错误
     defer db.Recover(&err) 
 	tdb.TQuery(&templatedb.ExecOption{
 		Sql: `select UserId, Name FROM tbl_test where UserId=? 

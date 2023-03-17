@@ -285,6 +285,9 @@ func (db *OptionDB) query(sdb sqlDB, op *ExecOption) (any, error) {
 					rv = reflect.NewAt(rt, reflect.MakeSlice(rt, 0, 10).UnsafePointer()).Elem()
 				}
 			}
+			if !rv.CanSet() {
+				rv = reflect.NewAt(rt, rv.UnsafePointer()).Elem()
+			}
 			rt = rt.Elem()
 		}
 		dest, err := newScanDest(columns, rt)

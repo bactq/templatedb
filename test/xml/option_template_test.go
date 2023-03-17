@@ -124,7 +124,7 @@ func TestOptionSelectXml(t *testing.T) {
 	//查询多条时使用的行来判断不同的sql语句
 	ret := db.TQuery(&templatedb.ExecOption{
 		FuncPC: templatedb.FuncPC(TestOptionSelectXml),
-		Result: ([]Info)(nil),
+		Result: []Info{},
 		Args:   []any{1},
 		Param:  Info{Name: "dd"},
 	}).([]Info)
