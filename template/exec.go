@@ -402,7 +402,7 @@ func isTrue(val reflect.Value) (truth, ok bool) {
 		truth = val.Uint() != 0
 	case reflect.Struct:
 		if tv, ok := val.Interface().(time.Time); ok {
-			if tv == (time.Time{}) {
+			if tv.Unix() == 0 {
 				truth = false
 			} else {
 				truth = true
