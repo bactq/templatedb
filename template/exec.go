@@ -380,7 +380,7 @@ func IsTrue(val any) (truth, ok bool) {
 	return isTrue(reflect.ValueOf(val))
 }
 
-var isTrue_t0 = time.Time{}
+var invalidTime = time.Time{}
 
 func isTrue(val reflect.Value) (truth, ok bool) {
 	if !val.IsValid() {
@@ -404,7 +404,7 @@ func isTrue(val reflect.Value) (truth, ok bool) {
 		truth = val.Uint() != 0
 	case reflect.Struct:
 		if tv, ok := val.Interface().(time.Time); ok {
-			if tv == isTrue_t0 || tv == isTrue_t0.Local() {
+			if tv == invalidTime || tv == invalidTime.Local() {
 				truth = false
 			} else {
 				truth = true
