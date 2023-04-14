@@ -212,7 +212,9 @@ func (db *OptionDB) query(sdb sqlDB, op *ExecOption) (any, error) {
 	}
 	if db.sqlInfoPrint && LogPrintf != nil {
 		LogPrintf(sql)
-		LogPrintf("%#v", args)
+		for _, v := range args {
+			LogPrintf("%#v", v)
+		}
 		LogPrintf("\n")
 	}
 	if op.Ctx == nil {
