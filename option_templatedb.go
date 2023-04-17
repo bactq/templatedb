@@ -211,11 +211,21 @@ func (db *OptionDB) query(sdb sqlDB, op *ExecOption) (any, error) {
 		return nil, err
 	}
 	if db.sqlInfoPrint && LogPrintf != nil {
-		LogPrintf(sql)
-		for _, v := range args {
-			LogPrintf("%#v", v)
+		sb := strings.Builder{}
+		sb.WriteString(sql)
+		sb.WriteString("Args[")
+		for i, v := range args {
+			if i > 0 {
+				sb.WriteString(",")
+			}
+			if reflect.TypeOf(v).Kind() == reflect.Pointer {
+				sb.WriteString(fmt.Sprint(reflect.ValueOf(v).Elem().Interface()))
+			} else {
+				sb.WriteString(fmt.Sprint(v))
+			}
 		}
-		LogPrintf("\n")
+		sb.WriteString("]\n")
+		LogPrintf(sb.String())
 	}
 	if op.Ctx == nil {
 		op.Ctx = context.Background()
