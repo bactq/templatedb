@@ -160,9 +160,6 @@ func likeRight(param reflect.Value) (string, []any) {
 	var args []any = make([]any, 1)
 	p := fmt.Sprint(param)
 	lb := strings.Builder{}
-	if !strings.HasPrefix(p, "%") {
-		lb.WriteByte('%')
-	}
 	lb.WriteString(p)
 	if !strings.HasSuffix(p, "%") {
 		lb.WriteByte('%')
@@ -178,9 +175,6 @@ func likeLeft(param reflect.Value) (string, []any) {
 		lb.WriteByte('%')
 	}
 	lb.WriteString(p)
-	if !strings.HasSuffix(p, "%") {
-		lb.WriteByte('%')
-	}
 	args[0] = lb.String()
 	return " like ? ", args
 }
