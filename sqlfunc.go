@@ -319,9 +319,16 @@ func AddSqlParamType(t reflect.Type) {
 	sqlParamType[t] = struct{}{}
 }
 
-var LogPrintf func(format string, a ...any) (n int, err error)
+type TemplateDBContextType int
 
-func recoverPrintf(err error) {
+const (
+	TemplateDBKeyString TemplateDBContextType = iota
+	TemplateDBFuncName
+)
+
+var LogPrintf func(ctx context.Context, info string)
+
+func recoverPrintf(ctx context.Context, err error) {
 	if LogPrintf != nil && err != nil {
 		var pc []uintptr = make([]uintptr, MaxStackLen)
 		n := runtime.Callers(3, pc[:])
@@ -331,7 +338,7 @@ func recoverPrintf(err error) {
 		for frame, more := frames.Next(); more; frame, more = frames.Next() {
 			sb.WriteString(fmt.Sprintf("%s:%d \n", frame.File, frame.Line))
 		}
-		LogPrintf(sb.String())
+		LogPrintf(ctx, sb.String())
 	}
 }
 
