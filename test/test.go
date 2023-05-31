@@ -1,6 +1,7 @@
 package test
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 
@@ -13,6 +14,8 @@ func GetOptionDB() (*templatedb.OptionDB, error) {
 	if err != nil {
 		return nil, err
 	}
-	templatedb.LogPrintf = fmt.Printf
+	templatedb.LogPrintf = func(ctx context.Context, info string) {
+		fmt.Println(info)
+	}
 	return templatedb.NewOptionDB(sqldb), nil
 }
