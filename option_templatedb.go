@@ -195,6 +195,16 @@ func (db *OptionDB) templateBuild(op *ExecOption) (string, []any, error) {
 		}
 	}
 	sql, args, err := templateSql.ExecuteBuilder(op.Param, op.Args)
+	if err != nil {
+		return "", nil, err
+	}
+	if templateSql.NotPrepare {
+		sql, err = SqlInterpolateParams(sql, args)
+		if err != nil {
+			return "", nil, err
+		}
+		args = nil
+	}
 	if op.Ctx != nil {
 		op.Ctx = context.WithValue(op.Ctx, TemplateDBKeyString, tKey)
 	}
