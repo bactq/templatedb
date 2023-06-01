@@ -14,7 +14,7 @@ type Sql struct {
 	Func       string `xml:"func,attr"`
 	Name       string `xml:"name,attr"`
 	Common     bool   `xml:"common,attr"`
-	NotPrepare bool   `xml:"prepare,attr"`
+	NotPrepare bool   `xml:"notPrepare,attr"`
 	Statement  string `xml:",chardata"`
 }
 
