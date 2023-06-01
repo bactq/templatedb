@@ -338,7 +338,7 @@ func (s *state) evalAtSign(dot reflect.Value, node *parse.AtSignNode) {
 		}
 	}
 	var ps = "?"
-	if SqlEscape != nil && node.PrefixPoundSign {
+	if SqlEscape != nil && (s.tmpl.NotPrepare || node.PrefixPoundSign) {
 		sqlParam, err := SqlEscape(arg)
 		if err != nil {
 			s.writeError(fmt.Errorf("evalAtSign sql escape:%s", err))

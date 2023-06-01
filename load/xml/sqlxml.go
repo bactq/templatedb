@@ -11,10 +11,11 @@ import (
 )
 
 type Sql struct {
-	Func      string `xml:"func,attr"`
-	Name      string `xml:"name,attr"`
-	Common    bool   `xml:"common,attr"`
-	Statement string `xml:",chardata"`
+	Func       string `xml:"func,attr"`
+	Name       string `xml:"name,attr"`
+	Common     bool   `xml:"common,attr"`
+	NotPrepare bool   `xml:"prepare,attr"`
+	Statement  string `xml:",chardata"`
 }
 
 type SqlStatementRoot struct {
@@ -58,6 +59,7 @@ func LoadTemplateStatements(sqlDir embed.FS, template map[string]*template.Templ
 					if err != nil {
 						return err
 					}
+					template[key].NotPrepare = v.NotPrepare
 					for _, common := range commons {
 						template[key].AddParseTree(common.Name(), common.Tree)
 					}
