@@ -9,8 +9,6 @@ import (
 	"runtime"
 	"strings"
 
-	commentStruct "github.com/tianxinzizhen/templatedb/load/comment/cstruct"
-	"github.com/tianxinzizhen/templatedb/load/xml"
 	"github.com/tianxinzizhen/templatedb/template"
 )
 
@@ -95,6 +93,7 @@ type OptionDB struct {
 type optionActionDB interface {
 	query(sdb sqlDB, op *ExecOption) (any, error)
 	exec(sdb sqlDB, op *ExecOption) (lastInsertId, rowsAffected int64, err error)
+	templateBuild(op *ExecOption) (string, []any, error)
 }
 type TemplateOptionDB interface {
 	Query(op *ExecOption) (any, error)
@@ -130,17 +129,7 @@ func NewOptionDB(sqlDB *sql.DB) *OptionDB {
 }
 
 func (db *OptionDB) LoadSqlOfXml(sqlfs embed.FS) error {
-	if db.template == nil {
-		db.template = make(map[string]*template.Template)
-	}
-	return xml.LoadTemplateStatements(sqlfs, db.template, db.parse)
-}
-
-func (db *OptionDB) LoadSqlOfCommentStruct(pkg string, sqlfs embed.FS) error {
-	if db.template == nil {
-		db.template = make(map[string]*template.Template)
-	}
-	return commentStruct.LoadTemplateStatements(pkg, sqlfs, db.template, db.parse)
+	return db.loadXmlFS("", sqlfs)
 }
 
 func (db *OptionDB) Recover(ctx context.Context, errp *error) {
@@ -223,11 +212,7 @@ func (db *OptionDB) query(sdb sqlDB, op *ExecOption) (any, error) {
 	if op.Ctx == nil {
 		op.Ctx = context.Background()
 	}
-	sql, args, err := db.templateBuild(op)
-	if err != nil {
-		return nil, err
-	}
-	rows, err := sdb.QueryContext(op.Ctx, sql, args...)
+	rows, err := sdb.QueryContext(op.Ctx, op.Sql, op.Args...)
 	if err != nil {
 		return nil, err
 	}
@@ -355,11 +340,7 @@ func (db *OptionDB) exec(sdb sqlDB, op *ExecOption) (lastInsertId, rowsAffected 
 	if op.Ctx == nil {
 		op.Ctx = context.Background()
 	}
-	sql, args, err := db.templateBuild(op)
-	if err != nil {
-		return 0, 0, err
-	}
-	result, err := sdb.ExecContext(op.Ctx, sql, args...)
+	result, err := sdb.ExecContext(op.Ctx, op.Sql, op.Args...)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -375,12 +356,26 @@ func (db *OptionDB) exec(sdb sqlDB, op *ExecOption) (lastInsertId, rowsAffected 
 }
 
 func (db *OptionDB) Query(op *ExecOption) (any, error) {
+	var err error
+	op.Sql, op.Args, err = db.templateBuild(op)
+	if err != nil {
+		return nil, err
+	}
 	return db.query(db.sqlDB, op)
 }
 func (db *OptionDB) Exec(op *ExecOption) (lastInsertId, rowsAffected int64, err error) {
+	op.Sql, op.Args, err = db.templateBuild(op)
+	if err != nil {
+		return 0, 0, err
+	}
 	return db.exec(db.sqlDB, op)
 }
 func (db *OptionDB) TQuery(op *ExecOption) any {
+	var err error
+	op.Sql, op.Args, err = db.templateBuild(op)
+	if err != nil {
+		panic(err)
+	}
 	rows, err := db.query(db.sqlDB, op)
 	if err != nil {
 		panic(err)
@@ -388,7 +383,12 @@ func (db *OptionDB) TQuery(op *ExecOption) any {
 	return rows
 }
 func (db *OptionDB) TExec(op *ExecOption) (lastInsertId, rowsAffected int64) {
-	lastInsertId, rowsAffected, err := db.exec(db.sqlDB, op)
+	var err error
+	op.Sql, op.Args, err = db.templateBuild(op)
+	if err != nil {
+		panic(err)
+	}
+	lastInsertId, rowsAffected, err = db.exec(db.sqlDB, op)
 	if err != nil {
 		panic(err)
 	}
@@ -440,12 +440,26 @@ func (tx *OptionTxDB) AutoCommit(ctx context.Context, errp *error) {
 }
 
 func (db *OptionTxDB) Query(op *ExecOption) (any, error) {
+	var err error
+	op.Sql, op.Args, err = db.templateBuild(op)
+	if err != nil {
+		return nil, err
+	}
 	return db.query(db.tx, op)
 }
 func (db *OptionTxDB) Exec(op *ExecOption) (lastInsertId, rowsAffected int64, err error) {
+	op.Sql, op.Args, err = db.templateBuild(op)
+	if err != nil {
+		return 0, 0, err
+	}
 	return db.exec(db.tx, op)
 }
 func (db *OptionTxDB) TQuery(op *ExecOption) any {
+	var err error
+	op.Sql, op.Args, err = db.templateBuild(op)
+	if err != nil {
+		panic(err)
+	}
 	rows, err := db.query(db.tx, op)
 	if err != nil {
 		panic(err)
@@ -453,7 +467,12 @@ func (db *OptionTxDB) TQuery(op *ExecOption) any {
 	return rows
 }
 func (db *OptionTxDB) TExec(op *ExecOption) (lastInsertId, rowsAffected int64) {
-	lastInsertId, rowsAffected, err := db.exec(db.tx, op)
+	var err error
+	op.Sql, op.Args, err = db.templateBuild(op)
+	if err != nil {
+		panic(err)
+	}
+	lastInsertId, rowsAffected, err = db.exec(db.tx, op)
 	if err != nil {
 		panic(err)
 	}
