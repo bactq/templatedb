@@ -68,7 +68,7 @@ func DBFuncInitCommon[T any](tdb TemplateOptionDB, dbFuncStruct *T) (reflect.Val
 	return dv, nil
 }
 
-func DBFuncLoadInit[T any](tdb *OptionDB, dbFuncStruct *T, sql any, lt LoadType) (*T, error) {
+func DBFuncInitAndLoad[T any](tdb *OptionDB, dbFuncStruct *T, sql any, lt LoadType) (*T, error) {
 	dv, err := DBFuncInitCommon(tdb, dbFuncStruct)
 	if err != nil {
 		return nil, err

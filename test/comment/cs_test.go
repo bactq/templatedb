@@ -18,7 +18,7 @@ func TestSelect(t *testing.T) {
 		t.Error(err)
 	}
 	dest := &TestAA{}
-	_, err = templatedb.DBFuncLoadInit(db, dest, sqlDir, templatedb.LoadComment)
+	_, err = templatedb.DBFuncInitAndLoad(db, dest, sqlDir, templatedb.LoadComment)
 	if err != nil {
 		t.Error(err)
 	}
