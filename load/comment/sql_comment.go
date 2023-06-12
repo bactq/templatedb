@@ -83,11 +83,13 @@ func LoadTemplateStatementsOfBytes(pkg string, bytes []byte, template map[string
 											notPrepare = true
 										}
 									}
-									template[key], err = parse(sql)
-									if err != nil {
-										return err
+									if len(sql) > 0 {
+										template[key], err = parse(sql)
+										if err != nil {
+											return err
+										}
+										template[key].NotPrepare = notPrepare
 									}
-									template[key].NotPrepare = notPrepare
 								}
 							}
 						}
