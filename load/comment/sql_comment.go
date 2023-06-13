@@ -72,15 +72,18 @@ func LoadTemplateStatementsOfBytes(pkg string, bytes []byte, template map[string
 									var sql string
 									var notPrepare bool
 									for _, ci := range field.Doc.List {
-										text := ci.Text
-										if strings.HasPrefix(ci.Text, "//sql ") {
+										if strings.HasPrefix(ci.Text, "//sql") {
 											sql = ci.Text[5:]
 										}
 										if strings.HasPrefix(ci.Text, "/*sql") {
 											sql = ci.Text[5 : len(ci.Text)-2]
 										}
-										if strings.HasPrefix(text, "//not-prepare") {
+										if strings.HasPrefix(ci.Text, "//not-prepare") {
 											notPrepare = true
+										}
+										if strings.HasPrefix(sql, ":not-prepare") {
+											notPrepare = true
+											sql = sql[len(":not-prepare"):]
 										}
 									}
 									if len(sql) > 0 {
