@@ -908,7 +908,7 @@ func (s *state) evalCall(dot, fun reflect.Value, isBuiltin bool, node parse.Node
 		sb.WriteString(ps[0])
 		resultArgs := params.Interface().([]any)
 		for i, v := range resultArgs {
-			if s.tmpl.sqlParams != nil {
+			if s.tmpl.sqlParams != nil && v != nil {
 				pitem, arg := s.tmpl.sqlParams(reflect.ValueOf(v))
 				s.args = append(s.args, arg)
 				sb.WriteString(pitem)
