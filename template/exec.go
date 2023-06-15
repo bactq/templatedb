@@ -287,7 +287,7 @@ func (s *state) walk(dot reflect.Value, node parse.Node) {
 		if s.qi < len(s.qArgs) {
 			arg := s.qArgs[s.qi]
 			s.qi++ //索引增加
-			if s.tmpl.sqlParams != nil {
+			if s.tmpl.sqlParams != nil && arg != nil {
 				var ps string
 				ps, arg = s.tmpl.sqlParams(reflect.ValueOf(arg))
 				s.wr.Write([]byte(ps))
