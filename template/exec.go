@@ -324,16 +324,26 @@ func (s *state) walk(dot reflect.Value, node parse.Node) {
 	}
 }
 
-func (s *state) evalAtSign(dot reflect.Value, node *parse.AtSignNode) {
-	receiver := s.varValue(node.Vars[len(node.Vars)-1])
-	val := s.evalField(dot, node.Text, node, nil, missingVal, receiver)
+func (s *state) evalAtSign(val reflect.Value, node *parse.AtSignNode) {
+	fieldNames := strings.Split(node.Text, ".")
+	for _, fieldName := range fieldNames {
+		val = s.evalField(val, fieldName, node, nil, missingVal, val)
+		if val == zero {
+			break
+		}
+	}
 	var arg any
 	var ps = "?"
-	if s.tmpl.sqlParams != nil {
-		ps, arg = s.tmpl.sqlParams(val)
+	if val == zero {
+		arg = nil
 		val = reflect.ValueOf(arg)
 	} else {
-		arg = val.Interface()
+		if s.tmpl.sqlParams != nil {
+			ps, arg = s.tmpl.sqlParams(val)
+			val = reflect.ValueOf(arg)
+		} else {
+			arg = val.Interface()
+		}
 	}
 	if node.SuffixQuestionMark {
 		truth, _ := isTrue(val)
