@@ -185,7 +185,7 @@ loop:
 			end = i
 			for j := i; ; j-- {
 				switch l.input[j] {
-				case '\t', '\n', '\f', '\r', ' ', ',':
+				case '\t', '\n', '\f', '\r', ' ', ',', l.rightDelim[len(l.rightDelim)-1]:
 					break loop
 				default:
 					start = j
