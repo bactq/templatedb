@@ -116,21 +116,23 @@ type stateFn func(*lexer) stateFn
 
 // lexer holds the state of the scanner.
 type lexer struct {
-	name        string    // the name of the input; used only for error reports
-	input       string    // the string being scanned
-	leftDelim   string    // start of action
-	rightDelim  string    // end of action
-	emitComment bool      // emit itemComment tokens.
-	pos         Pos       // current position in the input
-	start       Pos       // start position of this item
-	atEOF       bool      // we have hit the end of input and returned eof
-	items       chan item // channel of scanned items
-	parenDepth  int       // nesting depth of ( ) exprs
-	line        int       // 1+number of newlines seen
-	startLine   int       // start line of this item
-	breakOK     bool      // break keyword allowed
-	continueOK  bool      // continue keyword allowed
-	atSign      string
+	name           string    // the name of the input; used only for error reports
+	input          string    // the string being scanned
+	leftDelim      string    // start of action
+	rightDelim     string    // end of action
+	startLeftDelim rune      // start of action rune
+	endRightDelim  rune      // end of action rune
+	emitComment    bool      // emit itemComment tokens.
+	pos            Pos       // current position in the input
+	start          Pos       // start position of this item
+	atEOF          bool      // we have hit the end of input and returned eof
+	items          chan item // channel of scanned items
+	parenDepth     int       // nesting depth of ( ) exprs
+	line           int       // 1+number of newlines seen
+	startLine      int       // start line of this item
+	breakOK        bool      // break keyword allowed
+	continueOK     bool      // continue keyword allowed
+	atSign         string
 }
 
 // next returns the next rune in the input.
@@ -177,15 +179,19 @@ func (l *lexer) emitp() {
 	start := l.pos
 	end := l.pos
 loop:
-	for i := l.pos - 1; i > 0; i-- {
-		switch l.input[i] {
+	for i := l.pos - 1; i > 0; {
+		prune, pi := utf8.DecodeLastRuneInString(l.input[:i])
+		i = i - Pos(pi)
+		switch prune {
 		case '<', '>', '=', '!':
 		case '\t', '\n', '\f', '\r', ' ':
 		default:
 			end = i
-			for j := i; ; j-- {
-				switch l.input[j] {
-				case '\t', '\n', '\f', '\r', ' ', ',', l.rightDelim[len(l.rightDelim)-1]:
+			for j := i; j >= 0; {
+				prune, pi := utf8.DecodeLastRuneInString(l.input[:j])
+				j = j - Pos(pi)
+				switch prune {
+				case '\t', '\n', '\f', '\r', ' ', ',', l.endRightDelim:
 					break loop
 				default:
 					start = j
@@ -244,28 +250,34 @@ func (l *lexer) drain() {
 
 // lex creates a new scanner for the input string.
 func lex(name, input, left, right, atSign string, emitComment, breakOK, continueOK bool) *lexer {
+	var startLeftDelim rune // start of action rune
+	var endRightDelim rune  // end of action rune
 	if left == "" {
 		left = leftDelim
 	}
 	if right == "" {
 		right = rightDelim
 	}
+	startLeftDelim, _ = utf8.DecodeRuneInString(left)
+	endRightDelim, _ = utf8.DecodeLastRuneInString(right)
 	//@ Can be to set manually
 	if atSign == "" {
 		atSign = AtSign
 	}
 	l := &lexer{
-		name:        name,
-		input:       input,
-		leftDelim:   left,
-		rightDelim:  right,
-		atSign:      atSign,
-		emitComment: emitComment,
-		breakOK:     breakOK,
-		continueOK:  continueOK,
-		items:       make(chan item),
-		line:        1,
-		startLine:   1,
+		name:           name,
+		input:          input,
+		leftDelim:      left,
+		rightDelim:     right,
+		startLeftDelim: startLeftDelim,
+		endRightDelim:  endRightDelim,
+		atSign:         atSign,
+		emitComment:    emitComment,
+		breakOK:        breakOK,
+		continueOK:     continueOK,
+		items:          make(chan item),
+		line:           1,
+		startLine:      1,
 	}
 	go l.run()
 	return l
@@ -696,7 +708,7 @@ func lexAtSign(l *lexer) stateFn {
 Loop:
 	for {
 		switch l.next() {
-		case eof, ',', '%', '\'', ';', ')', '\t', '\n', '\f', '\r', ' ', rune(l.leftDelim[0]),
+		case eof, ',', '%', '\'', ';', ')', '\t', '\n', '\f', '\r', ' ', l.startLeftDelim,
 			'&', '<', '>', '=', '!':
 			l.backup()
 			break Loop
