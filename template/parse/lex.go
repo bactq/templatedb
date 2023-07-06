@@ -316,8 +316,8 @@ func lexText(l *lexer) stateFn {
 			l.emitp()
 			return lexText
 		case l.startAtSign:
-			end := i + Pos(len(l.atSign))
-			if l.input[i:end] == l.atSign {
+			pre, _ := utf8.DecodeLastRuneInString(l.input[:i])
+			if pre != '\\' && l.input[i:i+Pos(len(l.atSign))] == l.atSign {
 				l.pos = i
 				if l.pos > l.start {
 					l.line += strings.Count(l.input[l.start:l.pos], "\n")
@@ -328,8 +328,8 @@ func lexText(l *lexer) stateFn {
 				return lexAtSign
 			}
 		case l.startLeftDelim:
-			end := i + Pos(len(l.leftDelim))
-			if l.input[i:end] == l.leftDelim {
+			pre, _ := utf8.DecodeLastRuneInString(l.input[:i])
+			if pre != '\\' && l.input[i:i+Pos(len(l.leftDelim))] == l.leftDelim {
 				l.pos = i
 				ldn := Pos(len(l.leftDelim))
 				trimLength := Pos(0)
