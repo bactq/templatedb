@@ -133,6 +133,7 @@ type lexer struct {
 	breakOK        bool      // break keyword allowed
 	continueOK     bool      // continue keyword allowed
 	atSign         string
+	startAtSign    rune // end of action rune
 }
 
 // next returns the next rune in the input.
@@ -250,20 +251,19 @@ func (l *lexer) drain() {
 
 // lex creates a new scanner for the input string.
 func lex(name, input, left, right, atSign string, emitComment, breakOK, continueOK bool) *lexer {
-	var startLeftDelim rune // start of action rune
-	var endRightDelim rune  // end of action rune
 	if left == "" {
 		left = leftDelim
 	}
 	if right == "" {
 		right = rightDelim
 	}
-	startLeftDelim, _ = utf8.DecodeRuneInString(left)
-	endRightDelim, _ = utf8.DecodeLastRuneInString(right)
 	//@ Can be to set manually
 	if atSign == "" {
 		atSign = AtSign
 	}
+	startLeftDelim, _ := utf8.DecodeRuneInString(left)
+	endRightDelim, _ := utf8.DecodeLastRuneInString(right)
+	startAtSign, _ := utf8.DecodeRuneInString(atSign)
 	l := &lexer{
 		name:           name,
 		input:          input,
@@ -278,6 +278,7 @@ func lex(name, input, left, right, atSign string, emitComment, breakOK, continue
 		items:          make(chan item),
 		line:           1,
 		startLine:      1,
+		startAtSign:    startAtSign,
 	}
 	go l.run()
 	return l
@@ -303,48 +304,50 @@ const (
 
 // lexText scans until an opening action delimiter, "{{".
 func lexText(l *lexer) stateFn {
-	qx := strings.Index(l.input[l.pos:], "?")
-	atx := strings.Index(l.input[l.pos:], l.atSign)
-	lx := strings.Index(l.input[l.pos:], l.leftDelim)
-	if qx >= 0 {
-		if (qx < atx && (atx < lx || lx == -1)) || (qx < lx && atx == -1) || (atx == -1 && lx == -1) {
-			l.pos += Pos(qx)
-			if qx > 0 && l.pos > l.start {
+	for i := l.pos; int(i) < len(l.input); {
+		prune, pi := utf8.DecodeRuneInString(l.input[i:])
+		switch prune {
+		case '?':
+			l.pos = i
+			if l.pos > l.start {
 				l.line += strings.Count(l.input[l.start:l.pos], "\n")
 				l.emit(itemText)
 			}
-			l.ignore()
 			l.emitp()
 			return lexText
-		}
-	}
-	if atx >= 0 {
-		if atx < lx || lx == -1 {
-			l.pos += Pos(atx)
-			if atx > 0 && l.pos > l.start {
-				l.line += strings.Count(l.input[l.start:l.pos], "\n")
-				l.emit(itemText)
+		case l.startAtSign:
+			end := i + Pos(len(l.atSign))
+			if l.input[i:end] == l.atSign {
+				l.pos = i
+				if l.pos > l.start {
+					l.line += strings.Count(l.input[l.start:l.pos], "\n")
+					l.emit(itemText)
+				}
+				l.pos += Pos(len(l.atSign))
+				l.ignore()
+				return lexAtSign
 			}
-			l.pos += Pos(len(l.atSign))
-			l.ignore()
-			return lexAtSign
+		case l.startLeftDelim:
+			end := i + Pos(len(l.leftDelim))
+			if l.input[i:end] == l.leftDelim {
+				l.pos = i
+				ldn := Pos(len(l.leftDelim))
+				trimLength := Pos(0)
+				if hasLeftTrimMarker(l.input[l.pos+ldn:]) {
+					trimLength = rightTrimLength(l.input[l.start:l.pos])
+				}
+				l.pos -= trimLength
+				if l.pos > l.start {
+					l.line += strings.Count(l.input[l.start:l.pos], "\n")
+					l.emit(itemText)
+				}
+				l.pos += trimLength
+				l.ignore()
+				return lexLeftDelim
+			}
+		default:
 		}
-	}
-	if lx >= 0 {
-		ldn := Pos(len(l.leftDelim))
-		l.pos += Pos(lx)
-		trimLength := Pos(0)
-		if hasLeftTrimMarker(l.input[l.pos+ldn:]) {
-			trimLength = rightTrimLength(l.input[l.start:l.pos])
-		}
-		l.pos -= trimLength
-		if l.pos > l.start {
-			l.line += strings.Count(l.input[l.start:l.pos], "\n")
-			l.emit(itemText)
-		}
-		l.pos += trimLength
-		l.ignore()
-		return lexLeftDelim
+		i += Pos(pi)
 	}
 	l.pos = Pos(len(l.input))
 	// Correctly reached EOF.
