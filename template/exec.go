@@ -315,7 +315,7 @@ func (s *state) walk(dot reflect.Value, node parse.Node) {
 
 func (s *state) evalParam(val reflect.Value, node *parse.SqlParamNode) {
 	var ok bool
-	if len(node.Text) > 0 {
+	if node.Text != "?" {
 		val, ok = s.getField(val, node.Text)
 		if !ok && s.tmpl.ParamMap != nil {
 			i, ok := s.tmpl.ParamMap[node.Text]
