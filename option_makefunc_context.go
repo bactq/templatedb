@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"runtime"
+	"strings"
 
 	"github.com/tianxinzizhen/templatedb/load"
 	"github.com/tianxinzizhen/templatedb/template"
@@ -44,6 +46,19 @@ func AutoCommitFromContext(ctx context.Context, errp *error) {
 	}
 }
 
+func recoverLog(ctx context.Context, LogPrintf func(ctx context.Context, info string), err error) {
+	if LogPrintf != nil && err != nil {
+		var pc []uintptr = make([]uintptr, MaxStackLen)
+		n := runtime.Callers(3, pc[:])
+		frames := runtime.CallersFrames(pc[:n])
+		sb := strings.Builder{}
+		sb.WriteString(fmt.Sprintf("%v", err))
+		for frame, more := frames.Next(); more; frame, more = frames.Next() {
+			sb.WriteString(fmt.Sprintf("%s:%d \n", frame.File, frame.Line))
+		}
+		LogPrintf(ctx, sb.String())
+	}
+}
 func makeDBFuncContext(t reflect.Type, tdb *DBFuncTemplateDB, action Operation, templateSql *template.Template) reflect.Value {
 	return reflect.MakeFunc(t, func(args []reflect.Value) (results []reflect.Value) {
 		op := &FuncExecOption{
@@ -73,21 +88,7 @@ func makeDBFuncContext(t reflect.Type, tdb *DBFuncTemplateDB, action Operation, 
 			}
 		}
 		op.args = opArgs
-		results = make([]reflect.Value, t.NumOut())
-		for i := 0; i < t.NumOut(); i++ {
-			results[i] = reflect.Zero(t.Out(i))
-		}
-		hasReturnErr := t.Out(t.NumOut() - 1).Implements(errorType)
-		var err error
-		err = tdb.templateBuild(templateSql, op)
-		if err != nil {
-			if hasReturnErr {
-				results[t.NumOut()-1].Set(reflect.ValueOf(err))
-			} else {
-				panic(err)
-			}
-			return results
-		}
+
 		var db sqlDB = tdb.db
 		if op.ctx == nil {
 			op.ctx = context.Background()
@@ -96,7 +97,22 @@ func makeDBFuncContext(t reflect.Type, tdb *DBFuncTemplateDB, action Operation, 
 			if ok && tx != nil {
 				db = tx
 			}
-			op.ctx = context.WithValue(op.ctx, TemplateDBFuncName, templateSql.Name)
+		}
+		results = make([]reflect.Value, t.NumOut())
+		for i := 0; i < t.NumOut(); i++ {
+			results[i] = reflect.Zero(t.Out(i))
+		}
+		hasReturnErr := t.Out(t.NumOut() - 1).Implements(errorType)
+		var err error
+		err = tdb.templateBuild(templateSql, op)
+		if err != nil {
+			recoverLog(op.ctx, tdb.logFunc, err)
+			if hasReturnErr {
+				results[t.NumOut()-1].Set(reflect.ValueOf(err))
+			} else {
+				panic(err)
+			}
+			return results
 		}
 		switch action {
 		case ExecAction:
@@ -120,6 +136,7 @@ func makeDBFuncContext(t reflect.Type, tdb *DBFuncTemplateDB, action Operation, 
 			_, err = tdb.exec(db, op)
 		}
 		if err != nil {
+			recoverLog(op.ctx, tdb.logFunc, err)
 			if hasReturnErr {
 				results[t.NumOut()-1].Set(reflect.ValueOf(err))
 			} else {
