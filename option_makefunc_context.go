@@ -193,11 +193,17 @@ func DBFuncContextInit(tdb *DBFuncTemplateDB, dbFuncStruct any, sql any) error {
 				}
 				for i := 0; i < fct.NumOut(); i++ {
 					ditIni := fct.Out(i)
+					if ditIni.Implements(errorType) {
+						continue
+					}
 					if ditIni.Kind() == reflect.Func {
 						return fmt.Errorf("DBFuncContextInit out(%d) type not support Func", i)
 					}
 					if ditIni.Kind() == reflect.Chan {
 						return fmt.Errorf("DBFuncContextInit out(%d) type not support Chan", i)
+					}
+					if ditIni.Kind() == reflect.Interface {
+						return fmt.Errorf("DBFuncContextInit out(%d) type not support Interface", i)
 					}
 				}
 				var action Operation = ExecNoResultAction

@@ -48,6 +48,7 @@ func NewDBFuncTemplateDB(sqlDB *sql.DB) *DBFuncTemplateDB {
 	for k, v := range sqlParamType {
 		tdb.sqlParamType[k] = v
 	}
+	tdb.logFunc = LogPrintf
 	return tdb
 }
 
@@ -97,23 +98,22 @@ func (tdb *DBFuncTemplateDB) query(db sqlDB, op *FuncExecOption) error {
 	if err != nil {
 		return err
 	}
-	rt := reflect.TypeOf(op.result)
-	dest, more, err := newScanDestByValues(tdb.sqlParamType, columns, op.result)
+	dest, more, arrayLen, err := newScanDestByValues(tdb.sqlParamType, columns, op.result)
 	if err != nil {
 		return err
 	}
 	i := 0
 	for rows.Next() {
-		nextScan(op.result, dest)
+		nextScan(op.result, i, dest)
 		err = rows.Scan(dest...)
 		if err != nil {
 			return err
 		}
 		if more {
-			if rt.Kind() == reflect.Array && i == rt.Len() {
+			i++
+			if arrayLen > 0 && i == arrayLen {
 				break
 			}
-			i++
 		} else {
 			break
 		}
@@ -138,4 +138,16 @@ func (tdb *DBFuncTemplateDB) exec(db sqlDB, op *FuncExecOption) (ret *Result, er
 		return &Result{}, nil
 	}
 	return &Result{lastInsertId, rowsAffected}, nil
+}
+
+func (tdb *DBFuncTemplateDB) Begin(ctx context.Context) (context.Context, error) {
+	return tdb.BeginTx(ctx, nil)
+}
+
+func (tdb *DBFuncTemplateDB) BeginTx(ctx context.Context, opts *sql.TxOptions) (context.Context, error) {
+	tx, err := tdb.db.BeginTx(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+	return NewDBFuncContextTx(ctx, tx), nil
 }
