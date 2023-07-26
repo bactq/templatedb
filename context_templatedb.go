@@ -61,6 +61,13 @@ type FuncExecOption struct {
 	sql        string
 }
 
+type keyLogSqlFuncName struct{}
+
+func FromLogSqlFuncName(ctx context.Context) (sql string, ok bool) {
+	sql, ok = ctx.Value(keyLogSqlFuncName{}).(string)
+	return
+}
+
 func (tdb *DBFuncTemplateDB) templateBuild(templateSql *template.Template, op *FuncExecOption) error {
 	var err error
 	op.sql, op.args, err = templateSql.ExecuteBuilder(op.param, op.args, op.args_Index)
@@ -76,10 +83,11 @@ func (tdb *DBFuncTemplateDB) templateBuild(templateSql *template.Template, op *F
 	}
 	if tdb.sqlDebug && tdb.logFunc != nil {
 		interpolateParamsSql, err := SqlInterpolateParams(op.sql, op.args)
+		ctx := context.WithValue(op.ctx, keyLogSqlFuncName{}, templateSql.Name)
 		if err != nil {
-			tdb.logFunc(op.ctx, fmt.Sprintf("sql not print by error[%v]", err))
+			tdb.logFunc(ctx, fmt.Sprintf("sql not print by error[%v]", err))
 		} else {
-			tdb.logFunc(op.ctx, interpolateParamsSql)
+			tdb.logFunc(ctx, interpolateParamsSql)
 		}
 	}
 	return err
@@ -149,5 +157,5 @@ func (tdb *DBFuncTemplateDB) BeginTx(ctx context.Context, opts *sql.TxOptions) (
 	if err != nil {
 		return nil, err
 	}
-	return NewDBFuncContextTx(ctx, tx), nil
+	return NewSqlTx(ctx, tx), nil
 }

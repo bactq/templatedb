@@ -13,14 +13,14 @@ import (
 	"github.com/tianxinzizhen/templatedb/template"
 )
 
-type DBFuncContextTx struct{}
+type keySqlTx struct{}
 
-func NewDBFuncContextTx(ctx context.Context, tx *sql.Tx) context.Context {
-	return context.WithValue(ctx, DBFuncContextTx{}, tx)
+func NewSqlTx(ctx context.Context, tx *sql.Tx) context.Context {
+	return context.WithValue(ctx, keySqlTx{}, tx)
 }
 
-func FromDBFuncContextTx(ctx context.Context) (tx *sql.Tx, ok bool) {
-	tx, ok = ctx.Value(DBFuncContextTx{}).(*sql.Tx)
+func FromSqlTx(ctx context.Context) (tx *sql.Tx, ok bool) {
+	tx, ok = ctx.Value(keySqlTx{}).(*sql.Tx)
 	return
 }
 
@@ -36,7 +36,7 @@ func AutoCommitFromContext(ctx context.Context, errp *error) {
 			}
 		}
 	}
-	tx, ok := FromDBFuncContextTx(ctx)
+	tx, ok := FromSqlTx(ctx)
 	if ok && tx != nil {
 		if *errp != nil {
 			tx.Rollback()
@@ -93,7 +93,7 @@ func makeDBFuncContext(t reflect.Type, tdb *DBFuncTemplateDB, action Operation, 
 		if op.ctx == nil {
 			op.ctx = context.Background()
 		} else {
-			tx, ok := FromDBFuncContextTx(op.ctx)
+			tx, ok := FromSqlTx(op.ctx)
 			if ok && tx != nil {
 				db = tx
 			}
