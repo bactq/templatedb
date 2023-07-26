@@ -108,7 +108,7 @@ func makeDBFuncContext(t reflect.Type, tdb *DBFuncTemplateDB, action Operation, 
 		if err != nil {
 			recoverLog(op.ctx, tdb.logFunc, err)
 			if hasReturnErr {
-				results[t.NumOut()-1].Set(reflect.ValueOf(err))
+				results[t.NumOut()-1] = reflect.ValueOf(err)
 			} else {
 				panic(err)
 			}
@@ -138,7 +138,7 @@ func makeDBFuncContext(t reflect.Type, tdb *DBFuncTemplateDB, action Operation, 
 		if err != nil {
 			recoverLog(op.ctx, tdb.logFunc, err)
 			if hasReturnErr {
-				results[t.NumOut()-1].Set(reflect.ValueOf(err))
+				results[t.NumOut()-1] = reflect.ValueOf(err)
 			} else {
 				panic(err)
 			}
