@@ -156,7 +156,7 @@ func DBFuncContextInit(tdb *DBFuncTemplateDB, dbFuncStruct any, sql any) error {
 		return errors.New("DBFuncContextInit in(dbFuncStruct) is not valid")
 	}
 	dt := dv.Type()
-	tp := template.New(dt.Name()).Delims(tdb.leftDelim, tdb.rightDelim).SqlParams(tdb.sqlParamsConvert).Funcs(sqlFunc)
+	tp := template.New(dt.Name()).Delims(tdb.leftDelim, tdb.rightDelim).SqlParams(tdb.sqlParamsConvert).Funcs(tdb.sqlFunc)
 	sqlInfos, err := load.LoadComment(sql)
 	if err != nil {
 		return err
