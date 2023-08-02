@@ -9,7 +9,6 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/omigo/log"
 	"github.com/tianxinzizhen/templatedb/load"
 	"github.com/tianxinzizhen/templatedb/template"
 )
@@ -267,7 +266,6 @@ func AutoCommit(ctx context.Context, err *error) {
 		if e := recover(); e != nil {
 			tx.Rollback()
 			if df, ok := e.(*DBFuncPanicError); ok {
-				log.Error(ctx, df.Error())
 				*err = df.Unwrap()
 			}
 			switch e := e.(type) {
@@ -286,7 +284,6 @@ func Recover(ctx context.Context, err *error) {
 	if *err == nil {
 		if e := recover(); e != nil {
 			if df, ok := e.(*DBFuncPanicError); ok {
-				log.Error(ctx, df.Error())
 				*err = df.Unwrap()
 			}
 			switch e := e.(type) {
