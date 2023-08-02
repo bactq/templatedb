@@ -265,10 +265,6 @@ func AutoCommit(ctx context.Context, err *error) {
 		}
 		if e := recover(); e != nil {
 			tx.Rollback()
-			if df, ok := e.(*DBFuncPanicError); ok {
-				*err = df.Unwrap()
-				return
-			}
 			switch e := e.(type) {
 			case error:
 				*err = e
@@ -281,13 +277,9 @@ func AutoCommit(ctx context.Context, err *error) {
 	}
 }
 
-func Recover(ctx context.Context, err *error) {
+func Recover(_ context.Context, err *error) {
 	if *err == nil {
 		if e := recover(); e != nil {
-			if df, ok := e.(*DBFuncPanicError); ok {
-				*err = df.Unwrap()
-				return
-			}
 			switch e := e.(type) {
 			case error:
 				*err = e
