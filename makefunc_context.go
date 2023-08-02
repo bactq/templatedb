@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/omigo/log"
 	"github.com/tianxinzizhen/templatedb/load"
 	"github.com/tianxinzizhen/templatedb/template"
 )
@@ -254,4 +255,47 @@ func DBFuncContextInit(tdb *DBFuncTemplateDB, dbFuncStruct any, lt LoadType, sql
 		}
 	}
 	return nil
+}
+
+func AutoCommit(ctx context.Context, err *error) {
+	tx, ok := FromSqlTx(ctx)
+	if ok && tx != nil {
+		if *err != nil {
+			tx.Rollback()
+			return
+		}
+		if e := recover(); e != nil {
+			tx.Rollback()
+			if df, ok := e.(*DBFuncPanicError); ok {
+				log.Error(ctx, df.Error())
+				*err = df.Unwrap()
+			}
+			switch e := e.(type) {
+			case error:
+				*err = e
+			default:
+				panic(e)
+			}
+			return
+		}
+		tx.Commit()
+	}
+}
+
+func Recover(ctx context.Context, err *error) {
+	if *err == nil {
+		if e := recover(); e != nil {
+			if df, ok := e.(*DBFuncPanicError); ok {
+				log.Error(ctx, df.Error())
+				*err = df.Unwrap()
+			}
+			switch e := e.(type) {
+			case error:
+				*err = e
+			default:
+				panic(e)
+			}
+			return
+		}
+	}
 }
