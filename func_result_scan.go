@@ -133,8 +133,7 @@ func nextScan(ret []reflect.Value, rowi int, scanRows []any) {
 		} else {
 			for _, v := range scanRows {
 				if vi, ok := v.(*scanner.ParameterScanner); ok {
-					ret[0] = reflect.New(ret[0].Type()).Elem()
-					vi.Dest = ret[0]
+					vi.Dest = rv
 				}
 			}
 		}
