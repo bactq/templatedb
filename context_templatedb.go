@@ -166,6 +166,9 @@ func (tdb *DBFuncTemplateDB) Begin(ctx context.Context) (context.Context, error)
 }
 
 func (tdb *DBFuncTemplateDB) BeginTx(ctx context.Context, opts *sql.TxOptions) (context.Context, error) {
+	if tx, ok := FromSqlTx(ctx); ok && tx != nil {
+		return ctx, nil
+	}
 	tx, err := tdb.db.BeginTx(ctx, opts)
 	if err != nil {
 		return nil, err
