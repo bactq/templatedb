@@ -68,7 +68,7 @@ type FuncExecOption struct {
 	ctx        context.Context
 	param      any
 	args       []any
-	args_Index map[int]any
+	args_Index []any
 	result     []reflect.Value
 	sql        string
 }
