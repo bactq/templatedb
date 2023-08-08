@@ -152,6 +152,9 @@ func nextSetResult(ret []reflect.Value, rowi int, scanRows []any) {
 			rt = rt.Elem()
 			mv := rv
 			for rt.Kind() == reflect.Pointer {
+				if !rv.CanAddr() {
+					return
+				}
 				rt = rt.Elem()
 				mv = rv.Addr()
 			}
@@ -166,6 +169,9 @@ func nextSetResult(ret []reflect.Value, rowi int, scanRows []any) {
 		} else {
 			mv := rv
 			for rt.Kind() == reflect.Pointer {
+				if !rv.CanAddr() {
+					return
+				}
 				rt = rt.Elem()
 				mv = rv.Addr()
 			}
