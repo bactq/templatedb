@@ -175,3 +175,36 @@ func (tdb *DBFuncTemplateDB) BeginTx(ctx context.Context, opts *sql.TxOptions) (
 	}
 	return NewSqlTx(ctx, tx), nil
 }
+func (tdb *DBFuncTemplateDB) AutoCommit(ctx context.Context, err *error) {
+	if *err == nil {
+		if e := recover(); e != nil {
+			switch e := e.(type) {
+			case error:
+				*err = e
+			default:
+				panic(e)
+			}
+		}
+	}
+	tx, ok := FromSqlTx(ctx)
+	if ok {
+		if *err != nil {
+			tx.Rollback()
+		} else {
+			tx.Commit()
+		}
+	}
+}
+
+func (tdb *DBFuncTemplateDB) Recover(_ context.Context, err *error) {
+	if *err == nil {
+		if e := recover(); e != nil {
+			switch e := e.(type) {
+			case error:
+				*err = e
+			default:
+				panic(e)
+			}
+		}
+	}
+}

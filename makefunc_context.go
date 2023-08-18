@@ -258,23 +258,24 @@ func DBFuncContextInit(tdb *DBFuncTemplateDB, dbFuncStruct any, lt LoadType, sql
 }
 
 func AutoCommit(ctx context.Context, err *error) {
-	tx, ok := FromSqlTx(ctx)
-	if ok && tx != nil {
-		if *err != nil {
-			tx.Rollback()
-			return
-		}
+	if *err == nil {
 		if e := recover(); e != nil {
-			tx.Rollback()
 			switch e := e.(type) {
 			case error:
 				*err = e
 			default:
 				panic(e)
 			}
-			return
 		}
-		tx.Commit()
+	}
+	tx, ok := FromSqlTx(ctx)
+	if ok {
+		if *err != nil {
+			tx.Rollback()
+			return
+		} else {
+			tx.Commit()
+		}
 	}
 }
 
@@ -287,7 +288,6 @@ func Recover(_ context.Context, err *error) {
 			default:
 				panic(e)
 			}
-			return
 		}
 	}
 }
