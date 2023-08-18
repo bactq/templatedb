@@ -206,8 +206,8 @@ func (tdb *DBFuncTemplateDB) BeginTx(ctx context.Context, opts *sql.TxOptions) (
 	return NewSqlTx(ctx, tx), nil
 }
 func (tdb *DBFuncTemplateDB) AutoCommit(ctx context.Context, err *error) {
-	if rp, ok := tdb.FromRecover(ctx); ok && *rp {
-		if *err == nil {
+	if *err == nil {
+		if rp, ok := tdb.FromRecover(ctx); ok && *rp {
 			if e := recover(); e != nil {
 				switch e := e.(type) {
 				case error:
@@ -229,8 +229,8 @@ func (tdb *DBFuncTemplateDB) AutoCommit(ctx context.Context, err *error) {
 }
 
 func (tdb *DBFuncTemplateDB) Recover(ctx context.Context, err *error) {
-	if rp, ok := tdb.FromRecover(ctx); ok && *rp {
-		if *err == nil {
+	if *err == nil {
+		if rp, ok := tdb.FromRecover(ctx); ok && *rp {
 			if e := recover(); e != nil {
 				switch e := e.(type) {
 				case error:
