@@ -163,7 +163,7 @@ func (tdb *DBFuncTemplateDB) exec(db sqlDB, op *FuncExecOption) (ret *Result, er
 
 type recoverPanic struct{}
 
-func (tdb *DBFuncTemplateDB) enableRecoverPanic(ctx context.Context) {
+func (tdb *DBFuncTemplateDB) enableRecover(ctx context.Context) {
 	if ctx != nil {
 		recoverPanic, ok := ctx.Value(recoverPanic{}).(*bool)
 		if ok {
@@ -172,7 +172,7 @@ func (tdb *DBFuncTemplateDB) enableRecoverPanic(ctx context.Context) {
 	}
 }
 
-func (tdb *DBFuncTemplateDB) FromRecoverPanic(ctx context.Context) (*bool, bool) {
+func (tdb *DBFuncTemplateDB) FromRecover(ctx context.Context) (*bool, bool) {
 	if ctx == nil {
 		return nil, false
 	}
@@ -180,8 +180,8 @@ func (tdb *DBFuncTemplateDB) FromRecoverPanic(ctx context.Context) (*bool, bool)
 	return recoverPanic, ok
 }
 
-func (tdb *DBFuncTemplateDB) NewRecoverPanic(ctx context.Context) context.Context {
-	if _, ok := tdb.FromRecoverPanic(ctx); ok {
+func (tdb *DBFuncTemplateDB) NewRecover(ctx context.Context) context.Context {
+	if _, ok := tdb.FromRecover(ctx); ok {
 		return ctx
 	}
 	isRecoverPanic := false
@@ -193,8 +193,8 @@ func (tdb *DBFuncTemplateDB) Begin(ctx context.Context) (context.Context, error)
 }
 
 func (tdb *DBFuncTemplateDB) BeginTx(ctx context.Context, opts *sql.TxOptions) (context.Context, error) {
-	if _, ok := tdb.FromRecoverPanic(ctx); !ok {
-		ctx = tdb.NewRecoverPanic(ctx)
+	if _, ok := tdb.FromRecover(ctx); !ok {
+		ctx = tdb.NewRecover(ctx)
 	}
 	if tx, ok := FromSqlTx(ctx); ok && tx != nil {
 		return ctx, nil
@@ -206,7 +206,7 @@ func (tdb *DBFuncTemplateDB) BeginTx(ctx context.Context, opts *sql.TxOptions) (
 	return NewSqlTx(ctx, tx), nil
 }
 func (tdb *DBFuncTemplateDB) AutoCommit(ctx context.Context, err *error) {
-	if rp, ok := tdb.FromRecoverPanic(ctx); ok && *rp {
+	if rp, ok := tdb.FromRecover(ctx); ok && *rp {
 		if *err == nil {
 			if e := recover(); e != nil {
 				switch e := e.(type) {
@@ -229,7 +229,7 @@ func (tdb *DBFuncTemplateDB) AutoCommit(ctx context.Context, err *error) {
 }
 
 func (tdb *DBFuncTemplateDB) Recover(ctx context.Context, err *error) {
-	if rp, ok := tdb.FromRecoverPanic(ctx); ok && *rp {
+	if rp, ok := tdb.FromRecover(ctx); ok && *rp {
 		if *err == nil {
 			if e := recover(); e != nil {
 				switch e := e.(type) {

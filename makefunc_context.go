@@ -136,7 +136,7 @@ func makeDBFuncContext(t reflect.Type, tdb *DBFuncTemplateDB, action Operation, 
 			if hasReturnErr {
 				results[t.NumOut()-1] = reflect.ValueOf(funcErr(sqlInfo.FuncName, err))
 			} else {
-				tdb.enableRecoverPanic(op.ctx)
+				tdb.enableRecover(op.ctx)
 				panic(recoverLog(err))
 			}
 			return results
@@ -166,7 +166,7 @@ func makeDBFuncContext(t reflect.Type, tdb *DBFuncTemplateDB, action Operation, 
 			if hasReturnErr {
 				results[t.NumOut()-1] = reflect.ValueOf(funcErr(sqlInfo.FuncName, err))
 			} else {
-				tdb.enableRecoverPanic(op.ctx)
+				tdb.enableRecover(op.ctx)
 				panic(recoverLog(err))
 			}
 		}
