@@ -223,7 +223,7 @@ func (tdb *DBFuncTemplateDB) AutoCommit(ctx context.Context, err *error) {
 		if *err != nil {
 			tx.Rollback()
 		} else {
-			tx.Commit()
+			*err = tx.Commit()
 		}
 	}
 }
