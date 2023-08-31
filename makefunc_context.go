@@ -258,5 +258,11 @@ func DBFuncContextInit(tdb *DBFuncTemplateDB, dbFuncStruct any, lt LoadType, sql
 			}
 		}
 	}
+	//check the method of initialization
+	for i := 0; i < dv.NumField(); i++ {
+		if f := dv.Field(i); f.Type().Kind() == reflect.Func && f.IsNil() {
+			return fmt.Errorf("%s method:%s is not have a sql statement", dt.Name(), dt.Field(i).Name)
+		}
+	}
 	return nil
 }
