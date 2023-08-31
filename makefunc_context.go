@@ -85,7 +85,7 @@ func (e *DBFuncError) Unwrap() error {
 
 func makeDBFuncContext(t reflect.Type, tdb *DBFuncTemplateDB, action Operation, templateSql *template.Template, sqlInfo *load.SqlDataInfo) reflect.Value {
 	return reflect.MakeFunc(t, func(args []reflect.Value) (results []reflect.Value) {
-		op := &FuncExecOption{}
+		op := &funcExecOption{}
 		var opArgs []any
 		for _, v := range args {
 			val := v.Interface()

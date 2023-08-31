@@ -64,7 +64,7 @@ func NewDBFuncTemplateDB(sqlDB *sql.DB) *DBFuncTemplateDB {
 	return tdb
 }
 
-type FuncExecOption struct {
+type funcExecOption struct {
 	ctx        context.Context
 	param      any
 	args       []any
@@ -80,7 +80,7 @@ func FromLogSqlFuncName(ctx context.Context) (sql string, ok bool) {
 	return
 }
 
-func (tdb *DBFuncTemplateDB) templateBuild(templateSql *template.Template, op *FuncExecOption) error {
+func (tdb *DBFuncTemplateDB) templateBuild(templateSql *template.Template, op *funcExecOption) error {
 	var err error
 	op.sql, op.args, err = templateSql.ExecuteBuilder(op.param, op.args, op.args_Index)
 	if err != nil {
@@ -105,7 +105,7 @@ func (tdb *DBFuncTemplateDB) templateBuild(templateSql *template.Template, op *F
 	return err
 }
 
-func (tdb *DBFuncTemplateDB) query(db sqlDB, op *FuncExecOption) error {
+func (tdb *DBFuncTemplateDB) query(db sqlDB, op *funcExecOption) error {
 	if op.ctx == nil {
 		op.ctx = context.Background()
 	}
@@ -142,7 +142,7 @@ func (tdb *DBFuncTemplateDB) query(db sqlDB, op *FuncExecOption) error {
 	return nil
 }
 
-func (tdb *DBFuncTemplateDB) exec(db sqlDB, op *FuncExecOption) (ret *Result, err error) {
+func (tdb *DBFuncTemplateDB) exec(db sqlDB, op *funcExecOption) (ret *Result, err error) {
 	if op.ctx == nil {
 		op.ctx = context.Background()
 	}
