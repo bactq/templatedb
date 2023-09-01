@@ -3,7 +3,6 @@ package templatedb
 import (
 	"context"
 	"database/sql"
-	"embed"
 	"fmt"
 	"reflect"
 	"runtime"
@@ -115,6 +114,7 @@ func (db *OptionDB) Delims(delimsLeft, delimsRight string) {
 func (db *OptionDB) SqlParamsConvert(sqlParamsConvert func(val reflect.Value) (string, any)) {
 	db.sqlParamsConvert = sqlParamsConvert
 }
+
 func (db *OptionDB) SqlInfoPrint(sqlInfoPrint bool) {
 	db.sqlInfoPrint = sqlInfoPrint
 }
@@ -126,10 +126,6 @@ func NewOptionDB(sqlDB *sql.DB) *OptionDB {
 		delimsLeft: "{", delimsRight: "}",
 	}
 	return db
-}
-
-func (db *OptionDB) LoadSqlOfXml(sqlfs embed.FS) error {
-	return db.loadXmlFS("", sqlfs)
 }
 
 func (db *OptionDB) Recover(ctx context.Context, errp *error) {
