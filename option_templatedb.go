@@ -431,6 +431,7 @@ func (db *OptionTxDB) Query(op *ExecOption) (any, error) {
 func (db *OptionTxDB) Exec(op *ExecOption) (lastInsertId, rowsAffected int64, err error) {
 	return db.exec(db.tx, op)
 }
+
 func (db *OptionTxDB) TQuery(op *ExecOption) any {
 	rows, err := db.query(db.tx, op)
 	if err != nil {
