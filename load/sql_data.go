@@ -81,14 +81,19 @@ func LoadCommentBytes(pkg string, bytes []byte) ([]*SqlDataInfo, error) {
 							for _, field := range structType.Fields.List {
 								if fc, ok := field.Type.(*ast.FuncType); ok && field.Doc != nil {
 									for _, ci := range field.Doc.List {
+										var sql string
+										if strings.HasPrefix(ci.Text, "//sql") {
+											sql = ci.Text[5:]
+										} else if strings.HasPrefix(ci.Text, "/*sql") {
+											sql = ci.Text[5 : len(ci.Text)-2]
+										}
+										if len(sql) == 0 {
+											continue
+										}
 										sqlDataInfo := &SqlDataInfo{
 											Name:     field.Names[0].String(),
 											FuncName: fmt.Sprintf("%s.%s.%s:", pkg, typeSpec.Name.String(), field.Names[0].String()),
-										}
-										if strings.HasPrefix(ci.Text, "//sql") {
-											sqlDataInfo.Sql = ci.Text[5:]
-										} else if strings.HasPrefix(ci.Text, "/*sql") {
-											sqlDataInfo.Sql = ci.Text[5 : len(ci.Text)-2]
+											Sql:      sql,
 										}
 										for strings.HasPrefix(sqlDataInfo.Sql, ":") {
 											sqlDataInfo.Sql = sqlDataInfo.Sql[1:]
