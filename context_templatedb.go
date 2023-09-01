@@ -3,8 +3,10 @@ package templatedb
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"reflect"
+	"runtime"
 
 	"github.com/tianxinzizhen/templatedb/template"
 )
@@ -17,6 +19,7 @@ type DBFuncTemplateDB struct {
 	logFunc               func(ctx context.Context, info string)
 	sqlParamType          map[reflect.Type]struct{}
 	sqlFunc               template.FuncMap
+	template              map[uintptr]map[int]*template.Template
 }
 
 func (tdb *DBFuncTemplateDB) Delims(leftDelim, rightDelim string) {
@@ -206,6 +209,9 @@ func (tdb *DBFuncTemplateDB) BeginTx(ctx context.Context, opts *sql.TxOptions) (
 	return NewSqlTx(ctx, tx), nil
 }
 func (tdb *DBFuncTemplateDB) AutoCommit(ctx context.Context, err *error) {
+	if err == nil {
+		panic(errors.New("AutoCommit in(1) err pointer is nil"))
+	}
 	if *err == nil {
 		if rp, ok := tdb.FromRecover(ctx); ok && *rp {
 			if e := recover(); e != nil {
@@ -229,6 +235,9 @@ func (tdb *DBFuncTemplateDB) AutoCommit(ctx context.Context, err *error) {
 }
 
 func (tdb *DBFuncTemplateDB) Recover(ctx context.Context, err *error) {
+	if err == nil {
+		panic(errors.New("Recover in(1) err pointer is nil"))
+	}
 	if *err == nil {
 		if rp, ok := tdb.FromRecover(ctx); ok && *rp {
 			if e := recover(); e != nil {
@@ -241,4 +250,100 @@ func (tdb *DBFuncTemplateDB) Recover(ctx context.Context, err *error) {
 			}
 		}
 	}
+}
+
+func (tdb *DBFuncTemplateDB) sqlTemplateBuild(ctx context.Context, tsql string, parms any) (string, []any, error) {
+	pc, _, line, _ := runtime.Caller(2)
+	if tdb.template == nil {
+		tdb.template = make(map[uintptr]map[int]*template.Template)
+	}
+	if _, ok := tdb.template[pc]; !ok {
+		tdb.template[pc] = make(map[int]*template.Template)
+	}
+	if _, ok := tdb.template[pc][line]; !ok {
+		templateSql, err := template.New("").Delims(tdb.leftDelim, tdb.rightDelim).SqlParams(tdb.sqlParamsConvert).
+			Funcs(tdb.sqlFunc).Parse(tsql)
+		if err != nil {
+			return "", nil, err
+		}
+		tdb.template[pc][line] = templateSql
+	}
+	templateSql := tdb.template[pc][line]
+	sql, args, err := templateSql.ExecuteBuilder(parms, nil, nil)
+	if err != nil {
+		return "", nil, err
+	}
+	if tdb.sqlDebug && tdb.logFunc != nil {
+		interpolateParamsSql, err := SqlInterpolateParams(sql, args)
+		ctx := context.WithValue(ctx, keyLogSqlFuncName{}, fmt.Sprintf("%s:%d", runtime.FuncForPC(pc).Name(), line))
+		if err != nil {
+			tdb.logFunc(ctx, fmt.Sprintf("sql not print by error[%v]", err))
+		} else {
+			tdb.logFunc(ctx, interpolateParamsSql)
+		}
+	}
+	return sql, args, err
+}
+
+type SqlOption[T any] struct {
+	Ctx    context.Context
+	Sql    string
+	Param  any
+	Result T
+}
+
+func NewSqlOption[T any](ctx context.Context, sql string, param any, result T) SqlOption[T] {
+	return SqlOption[T]{Ctx: ctx, Sql: sql, Param: param, Result: result}
+}
+
+func (sop *SqlOption[T]) Query(tdb *DBFuncTemplateDB) (T, error) {
+	op := &funcExecOption{}
+	op.result = append(op.result, reflect.ValueOf(sop.Result))
+	op.ctx = sop.Ctx
+	op.sql = sop.Sql
+	op.param = sop.Param
+	var db sqlDB = tdb.db
+	if op.ctx == nil {
+		op.ctx = context.Background()
+	} else {
+		tx, ok := FromSqlTx(op.ctx)
+		if ok && tx != nil {
+			db = tx
+		}
+	}
+	var err error
+	op.sql, op.args, err = tdb.sqlTemplateBuild(op.ctx, op.sql, op.param)
+	if err != nil {
+		return sop.Result, err
+	}
+	tdb.query(db, op)
+	return op.result[0].Interface().(T), nil
+}
+func (sop *SqlOption[T]) Exec(tdb *DBFuncTemplateDB) ExecResult {
+	op := &funcExecOption{}
+	op.ctx = sop.Ctx
+	op.sql = sop.Sql
+	op.param = sop.Param
+	var db sqlDB = tdb.db
+	if op.ctx == nil {
+		op.ctx = context.Background()
+	} else {
+		tx, ok := FromSqlTx(op.ctx)
+		if ok && tx != nil {
+			db = tx
+		}
+	}
+	var err error
+	op.sql, op.args, err = tdb.sqlTemplateBuild(op.ctx, op.sql, op.param)
+	if err != nil {
+		return ExecResult{err: err}
+	}
+	result, err := tdb.exec(db, op)
+	if err != nil {
+		return ExecResult{err: err}
+	}
+	if result != nil {
+		return ExecResult{RowsAffected: result.RowsAffected, LastInsertId: result.LastInsertId}
+	}
+	return ExecResult{}
 }
