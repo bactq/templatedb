@@ -16,6 +16,7 @@ func (st SqlTemplate[T]) Query(tdb *DBFuncTemplateDB) (T, error) {
 	var result T
 	op.result = append(op.result, reflect.ValueOf(result))
 	op.ctx = st.Ctx
+	op.sql = st.Sql
 	op.param = st.Param
 	var db sqlDB = tdb.db
 	if op.ctx == nil {
@@ -41,6 +42,7 @@ func (st SqlTemplate[T]) Query(tdb *DBFuncTemplateDB) (T, error) {
 func (st SqlTemplate[T]) Exec(tdb *DBFuncTemplateDB) (*Result, error) {
 	op := &funcExecOption{}
 	op.ctx = st.Ctx
+	op.sql = st.Sql
 	op.param = st.Param
 	var db sqlDB = tdb.db
 	if op.ctx == nil {
