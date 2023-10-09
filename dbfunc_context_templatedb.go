@@ -37,13 +37,14 @@ func (tdb *DBFuncTemplateDB) LogFunc(logFunc func(ctx context.Context, info stri
 	tdb.logFunc = logFunc
 }
 
-func (tdb *DBFuncTemplateDB) AddTemplateFunc(key string, funcMethod any) error {
-	if _, ok := tdb.sqlFunc[key]; ok {
-		return fmt.Errorf("add template func[%s] already exists ", key)
-	} else {
-		tdb.sqlFunc[key] = funcMethod
+func (tdb *DBFuncTemplateDB) AddTemplateFunc(key string, funcMethod any) {
+	tdb.sqlFunc[key] = funcMethod
+}
+
+func (tdb *DBFuncTemplateDB) AddAllTemplateFunc(sqlFunc template.FuncMap) {
+	for k, v := range sqlFunc {
+		tdb.sqlFunc[k] = v
 	}
-	return nil
 }
 
 func (tdb *DBFuncTemplateDB) AddGetParameter(t reflect.Type, getParameter func(any) (string, any, error)) error {
