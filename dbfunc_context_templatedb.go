@@ -325,7 +325,7 @@ func (tdb *DBFuncTemplateDB) sqlTemplateBuild(ctx context.Context, tsql string, 
 	return sql, args, err
 }
 
-func (tdb *DBFuncTemplateDB) sqlPrintAndRecord(ctx context.Context, sqlFuncName, sql string, args ...any) {
+func (tdb *DBFuncTemplateDB) sqlPrintAndRecord(ctx context.Context, sqlFuncName, sql string, args []any) {
 	needPrintSql := (tdb.sqlDebug && tdb.logFunc != nil)
 	recordSql, recordSqlOk := tdb.FromRecordSql(ctx)
 	if needPrintSql || recordSqlOk {
