@@ -220,7 +220,14 @@ func (t *Template) GetParameter(arg any) (string, any, error) {
 			}
 		}
 	}
-	if arg != nil && notBasicType(reflect.TypeOf(arg)) {
+	at := reflect.TypeOf(arg)
+	switch at.Kind() {
+	case reflect.Slice, reflect.Pointer, reflect.Map, reflect.Interface:
+		if reflect.ValueOf(arg).IsNil() {
+			return ps, nil, nil
+		}
+	}
+	if notBasicType(at) {
 		argJson, err := json.Marshal(arg)
 		if err != nil {
 			return "", nil, err
