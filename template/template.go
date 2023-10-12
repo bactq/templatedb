@@ -193,13 +193,13 @@ func (t *Template) GetParameterMap(getParameterMap map[reflect.Type]func(any) (s
 	return t
 }
 
-var timeType reflect.Type = reflect.TypeOf(&time.Time{})
+var timeType reflect.Type = reflect.TypeOf(time.Time{})
 
 func notBasicType(field reflect.Type) bool {
 	for field.Kind() == reflect.Pointer {
 		field = field.Elem()
 	}
-	if field == timeType.Elem() || field == timeType {
+	if field == timeType {
 		return false
 	}
 	if field.Kind() == reflect.Struct || field.Kind() == reflect.Slice || field.Kind() == reflect.Map {
