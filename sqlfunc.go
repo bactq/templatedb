@@ -407,6 +407,8 @@ func (s *commonSqlFunc) values(sVal reflect.Value, value string) (string, []any,
 				case reflect.Map:
 					if val.Type().Key().Kind() == reflect.String {
 						args = append(args, val.MapIndex(reflect.ValueOf(column)).Interface())
+					} else {
+						return "", nil, fmt.Errorf("column:%s in map key is not string", column)
 					}
 				}
 				sqlBuilder.WriteString(ps)
