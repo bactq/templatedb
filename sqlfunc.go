@@ -401,6 +401,8 @@ func (s *commonSqlFunc) values(sVal reflect.Value, value string) (string, []any,
 							return "", nil, err
 						}
 						args = append(args, field.Interface())
+					} else {
+						return "", nil, fmt.Errorf("column:%s in struct %v not found", column, val.Type().Name())
 					}
 				case reflect.Map:
 					if val.Type().Key().Kind() == reflect.String {
