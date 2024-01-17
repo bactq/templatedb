@@ -39,3 +39,71 @@ func TestSelect(t *testing.T) {
 		fmt.Println(v)
 	}
 }
+
+func TestSelectByPoint(t *testing.T) {
+	tdb, err := GetDBFuncTemplateDB()
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	db, err := NewTestDB(tdb)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	list, err := db.SelectAtSignByTestInfo(context.Background(), &Test{
+		Id:   1,
+		Name: "a",
+	})
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	for _, v := range list {
+		fmt.Println(v)
+	}
+}
+
+func TestInsert(t *testing.T) {
+	tdb, err := GetDBFuncTemplateDB()
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	db, err := NewTestDB(tdb)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	result, err := db.Insert(context.Background(), &Test{
+		Id:   2,
+		Name: "b",
+	})
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	fmt.Println(result)
+}
+
+func TestUpdate(t *testing.T) {
+	tdb, err := GetDBFuncTemplateDB()
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	db, err := NewTestDB(tdb)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	err = db.UpdateNotResultId(context.Background(), &Test{
+		Id:   2,
+		Name: "b",
+	})
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	fmt.Println(db.SelectOneNoReturnErr(context.Background(), 2))
+}
