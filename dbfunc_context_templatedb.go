@@ -17,6 +17,7 @@ type DBFuncTemplateDB struct {
 	db                    *sql.DB
 	leftDelim, rightDelim string
 	sqlDebug              bool
+	sqlFormat             bool
 	logFunc               func(ctx context.Context, info string)
 	getFieldByName        func(t reflect.Type, fieldName string, scanNum map[string]int) (f reflect.StructField, ok bool)
 	getParameterMap       map[reflect.Type]func(any) (string, any, error)
@@ -32,6 +33,11 @@ func (tdb *DBFuncTemplateDB) Delims(leftDelim, rightDelim string) {
 
 func (tdb *DBFuncTemplateDB) SqlDebug(sqlDebug bool) {
 	tdb.sqlDebug = sqlDebug
+}
+
+// SqlFormat Remove extra spaces and line breaks
+func (tdb *DBFuncTemplateDB) SqlFormat(sqlFormat bool) {
+	tdb.sqlFormat = sqlFormat
 }
 
 func (tdb *DBFuncTemplateDB) LogFunc(logFunc func(ctx context.Context, info string)) {
@@ -120,23 +126,24 @@ func (tdb *DBFuncTemplateDB) templateBuild(templateSql *template.Template, op *f
 	if err != nil {
 		return err
 	}
-	// format sql :Remove extra spaces and line breaks
-	formatSql := &strings.Builder{}
-	var ignoreSpaceRune bool
-	for _, v := range op.sql {
-		switch v {
-		case ' ', '\t', '\n':
-			ignoreSpaceRune = true
-		default:
-			if ignoreSpaceRune {
-				formatSql.WriteRune(' ')
+	if tdb.sqlFormat {
+		// format sql :Remove extra spaces and line breaks
+		formatSql := &strings.Builder{}
+		var ignoreSpaceRune bool
+		for _, v := range op.sql {
+			switch v {
+			case ' ', '\t', '\n':
+				ignoreSpaceRune = true
+			default:
+				if ignoreSpaceRune {
+					formatSql.WriteRune(' ')
+				}
+				ignoreSpaceRune = false
+				formatSql.WriteRune(v)
 			}
-			ignoreSpaceRune = false
-			formatSql.WriteRune(v)
 		}
+		op.sql = formatSql.String()
 	}
-	op.sql = formatSql.String()
-	// end format sql
 	if templateSql.NotPrepare {
 		op.sql, err = SqlInterpolateParams(op.sql, op.args)
 		if err != nil {
