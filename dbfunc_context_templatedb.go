@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"reflect"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/tianxinzizhen/templatedb/template"
@@ -119,6 +120,23 @@ func (tdb *DBFuncTemplateDB) templateBuild(templateSql *template.Template, op *f
 	if err != nil {
 		return err
 	}
+	// format sql :Remove extra spaces and line breaks
+	formatSql := &strings.Builder{}
+	var ignoreSpaceRune bool
+	for _, v := range op.sql {
+		switch v {
+		case ' ', '\t', '\n':
+			ignoreSpaceRune = true
+		default:
+			if ignoreSpaceRune {
+				formatSql.WriteRune(' ')
+			}
+			ignoreSpaceRune = false
+			formatSql.WriteRune(v)
+		}
+	}
+	op.sql = formatSql.String()
+	// end format sql
 	if templateSql.NotPrepare {
 		op.sql, err = SqlInterpolateParams(op.sql, op.args)
 		if err != nil {
