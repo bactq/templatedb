@@ -15,11 +15,11 @@ func notBasicType(field reflect.Type) bool {
 	if field.Kind() == reflect.Pointer {
 		field = field.Elem()
 	}
-	if field.Kind() == reflect.Struct || field.Kind() == reflect.Slice || field.Kind() == reflect.Map {
+	switch field.Kind() {
+	case reflect.Struct, reflect.Slice, reflect.Map:
 		return true
-	} else {
-		return false
 	}
+	return false
 }
 func jsonConvertStruct(field reflect.Value, src any) error {
 	if src == nil {
@@ -41,9 +41,10 @@ func jsonConvertStruct(field reflect.Value, src any) error {
 			field.Set(reflect.MakeMap(field.Type()))
 		}
 	}
-	if field.Kind() == reflect.Struct || field.Kind() == reflect.Slice || field.Kind() == reflect.Map {
+	switch field.Kind() {
+	case reflect.Struct, reflect.Slice, reflect.Map:
 		return json.Unmarshal(src.([]byte), field.Addr().Interface())
-	} else {
+	default:
 		return convertAssign(field.Addr().Interface(), src)
 	}
 }
@@ -121,17 +122,17 @@ func (s *MapScanner) Scan(src any) error {
 		if vt.Kind() == reflect.Interface {
 			if s.Column.ScanType().ConvertibleTo(vt) {
 				dest := reflect.New(s.Column.ScanType()).Interface()
-				ConvertAssign(dest, src)
+				convertAssign(dest, src)
 				sc := scanTypeConvert(dest)
 				s.Dest.SetMapIndex(reflect.ValueOf(s.Name), sc.Convert(vt))
 			}
 		} else {
 			dest := reflect.New(vt)
-			err := ConvertAssign(dest.Interface(), src)
+			err := convertAssign(dest.Interface(), src)
 			if err != nil {
 				if s.Column.ScanType().ConvertibleTo(vt) {
 					dest := reflect.New(s.Column.ScanType()).Interface()
-					ConvertAssign(dest, src)
+					convertAssign(dest, src)
 					sc := scanTypeConvert(dest)
 					s.Dest.SetMapIndex(reflect.ValueOf(s.Name), sc.Convert(vt))
 				} else {
@@ -160,16 +161,16 @@ func (s *SliceScanner) Scan(src any) error {
 		if vt.Kind() == reflect.Interface {
 			if s.Column.ScanType().ConvertibleTo(vt) {
 				dest := reflect.New(s.Column.ScanType()).Interface()
-				ConvertAssign(dest, src)
+				convertAssign(dest, src)
 				sc := scanTypeConvert(dest)
 				s.Dest.Index(s.Index).Set(sc.Convert(vt))
 			}
 		} else {
-			err := ConvertAssign(dest.Interface(), src)
+			err := convertAssign(dest.Interface(), src)
 			if err != nil {
 				if s.Column.ScanType().ConvertibleTo(vt) {
 					dest := reflect.New(s.Column.ScanType()).Interface()
-					ConvertAssign(dest, src)
+					convertAssign(dest, src)
 					sc := scanTypeConvert(dest)
 					s.Dest.Index(s.Index).Set(sc.Convert(vt))
 				} else {
