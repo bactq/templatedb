@@ -372,51 +372,90 @@ func (s *commonSqlFunc) values(sVal reflect.Value, value string) (string, []any,
 	if sVal.Kind() != reflect.Slice {
 		return "", nil, fmt.Errorf("values sql function in(0) is not slice")
 	}
-	args := make([]any, 0, len(values)*sVal.Len())
-	for i := 0; i < sVal.Len(); i++ {
-		if i > 0 {
-			sqlBuilder.WriteRune(',')
+	if sVal.Len() == 0 {
+		return "", nil, fmt.Errorf("values sql function in(0) slice len is 0")
+	}
+	elemType := sVal.Elem().Type()
+	for elemType.Kind() == reflect.Pointer {
+		elemType = elemType.Elem()
+	}
+	if elemType.Kind() == reflect.Struct {
+		var valueIndex [][]int = make([][]int, len(values))
+		findFieldNum := 0
+		for i, v := range values {
+			if sf, ok := elemType.FieldByName(v); ok {
+				valueIndex[i] = sf.Index
+				findFieldNum++
+			}
 		}
-		sqlBuilder.WriteString("(")
-		val, isNil := indirect(sVal.Index(i))
-		if isNil {
-			return "", nil, fmt.Errorf("value sql function in(0) is nil")
-		}
-		for j, column := range values {
-			if j > 0 {
+		args := make([]any, 0, len(values)*findFieldNum)
+		for i := 0; i < sVal.Len(); i++ {
+			val, isNil := indirect(sVal.Index(i))
+			if i > 0 {
 				sqlBuilder.WriteRune(',')
 			}
-			ps := "?"
-			column = strings.TrimSpace(column)
-			switch column {
-			case "CURRENT_TIMESTAMP":
-				sqlBuilder.WriteString(column)
-			default:
-				switch val.Kind() {
-				case reflect.Struct:
-					tField, ok := s.getFieldByName(val.Type(), column, nil)
-					if ok {
-						field, err := val.FieldByIndexErr(tField.Index)
-						if err != nil {
-							return "", nil, err
-						}
-						args = append(args, field.Interface())
-					} else {
-						return "", nil, fmt.Errorf("column:%s in struct %v not found", column, val.Type().Name())
-					}
-				case reflect.Map:
-					if val.Type().Key().Kind() == reflect.String {
-						args = append(args, val.MapIndex(reflect.ValueOf(column)).Interface())
-					} else {
-						return "", nil, fmt.Errorf("column:%s in map key is not string", column)
-					}
+			sqlBuilder.WriteString("(")
+			for i, v := range values {
+				if i > 0 {
+					sqlBuilder.WriteRune(',')
 				}
-				sqlBuilder.WriteString(ps)
+				if index := valueIndex[i]; index != nil {
+					sqlBuilder.WriteRune('?')
+					if isNil {
+						args = append(args, nil)
+					} else {
+						args = append(args, val.FieldByIndex(index).Interface())
+					}
+				} else {
+					sqlBuilder.WriteString(v)
+				}
 			}
+			sqlBuilder.WriteString(")")
 		}
-		sqlBuilder.WriteString(")")
+		return sqlBuilder.String(), args, nil
+	} else if elemType.Kind() == reflect.Map {
+		var args []any
+		for i := 0; i < sVal.Len(); i++ {
+			if i > 0 {
+				sqlBuilder.WriteRune(',')
+			}
+			val, isNil := indirect(sVal.Index(i))
+			sqlBuilder.WriteString("(")
+			for _, v := range values {
+				if i > 0 {
+					sqlBuilder.WriteRune(',')
+				}
+				if mv := val.MapIndex(reflect.ValueOf(v)); mv.IsValid() {
+					sqlBuilder.WriteRune('?')
+					if isNil {
+						args = append(args, nil)
+					} else {
+						args = append(args, mv.Interface())
+					}
+				} else {
+					sqlBuilder.WriteString(v)
+				}
+			}
+			sqlBuilder.WriteString(")")
+		}
+		return sqlBuilder.String(), args, nil
+	} else {
+		var args []any
+		for i := 0; i < sVal.Len(); i++ {
+			if i > 0 {
+				sqlBuilder.WriteRune(',')
+			}
+			val, isNil := indirect(sVal.Index(i))
+			sqlBuilder.WriteString("(")
+			if isNil {
+				args = append(args, nil)
+			} else {
+				args = append(args, val.Interface())
+			}
+			sqlBuilder.WriteString(")")
+		}
+		return sqlBuilder.String(), args, nil
 	}
-	return sqlBuilder.String(), args, nil
 }
 
 func (s *commonSqlFunc) set(val reflect.Value, action []string, value string) (string, []any, error) {
