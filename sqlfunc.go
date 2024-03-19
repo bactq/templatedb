@@ -229,6 +229,12 @@ func indirect(v reflect.Value) (rv reflect.Value, isNil bool) {
 	}
 	return v, false
 }
+func indirectType(v reflect.Type) reflect.Type {
+	for v.Kind() == reflect.Pointer {
+		v = v.Elem()
+	}
+	return v
+}
 
 func (s *commonSqlFunc) inParam(list reflect.Value, fieldNames ...string) (string, []any, error) {
 	list, isNil := indirect(list)
@@ -238,7 +244,7 @@ func (s *commonSqlFunc) inParam(list reflect.Value, fieldNames ...string) (strin
 	if list.Kind() == reflect.Slice || list.Kind() == reflect.Array {
 		var args []any = make([]any, 0, list.Len())
 		exists := make(map[any]any)
-		elemType := list.Elem().Type()
+		elemType := indirectType(list.Type().Elem())
 		switch elemType.Kind() {
 		case reflect.Struct:
 			var fieldName []string
@@ -252,15 +258,15 @@ func (s *commonSqlFunc) inParam(list reflect.Value, fieldNames ...string) (strin
 				if !ok {
 					return "", nil, fmt.Errorf("in params : The attribute %s was not found in the structure %s.%s", strings.Join(fieldName[:i], "."), findType.PkgPath(), findType.Name())
 				}
-				findType = tField.Type
-				for findType.Kind() == reflect.Pointer {
-					findType = findType.Elem()
-				}
+				findType = indirectType(tField.Type)
 				nameIndex = append(nameIndex, tField.Index)
 			}
 		foreachRow:
 			for i := 0; i < list.Len(); i++ {
-				item := list.Index(i)
+				item, isNil := indirect(list.Index(i))
+				if isNil {
+					continue foreachRow
+				}
 				for _, v := range nameIndex {
 					item, isNil = indirect(item.FieldByIndex(v))
 					if isNil {
