@@ -370,24 +370,21 @@ func (s *commonSqlFunc) value(val reflect.Value, value string) (string, []any, e
 }
 
 func (s *commonSqlFunc) values(sVal reflect.Value, value string) (string, []any, error) {
-	values := strings.Split(value, ",")
-	sqlBuilder := strings.Builder{}
-	sqlBuilder.WriteString(" VALUES ")
 	if sVal.Kind() != reflect.Slice {
 		return "", nil, fmt.Errorf("values sql function in(0) is not slice")
 	}
 	if sVal.Len() == 0 {
 		return "", nil, fmt.Errorf("values sql function in(0) slice len is 0")
 	}
-	elemType := sVal.Elem().Type()
-	for elemType.Kind() == reflect.Pointer {
-		elemType = elemType.Elem()
-	}
+	values := strings.Split(value, ",")
+	sqlBuilder := strings.Builder{}
+	sqlBuilder.WriteString(" VALUES ")
+	elemType := indirectType(sVal.Type().Elem())
 	if elemType.Kind() == reflect.Struct {
 		var valueIndex [][]int = make([][]int, len(values))
 		findFieldNum := 0
 		for i, v := range values {
-			if sf, ok := elemType.FieldByName(v); ok {
+			if sf, ok := elemType.FieldByName(strings.TrimSpace(v)); ok {
 				valueIndex[i] = sf.Index
 				findFieldNum++
 			}
@@ -395,6 +392,9 @@ func (s *commonSqlFunc) values(sVal reflect.Value, value string) (string, []any,
 		args := make([]any, 0, len(values)*findFieldNum)
 		for i := 0; i < sVal.Len(); i++ {
 			val, isNil := indirect(sVal.Index(i))
+			if isNil {
+				return "", nil, fmt.Errorf("values sql function in(0) slice[%d] is nil", i)
+			}
 			if i > 0 {
 				sqlBuilder.WriteRune(',')
 			}
@@ -424,12 +424,15 @@ func (s *commonSqlFunc) values(sVal reflect.Value, value string) (string, []any,
 				sqlBuilder.WriteRune(',')
 			}
 			val, isNil := indirect(sVal.Index(i))
+			if isNil {
+				return "", nil, fmt.Errorf("values sql function in(0) slice[%d] is nil", i)
+			}
 			sqlBuilder.WriteString("(")
 			for _, v := range values {
 				if i > 0 {
 					sqlBuilder.WriteRune(',')
 				}
-				if mv := val.MapIndex(reflect.ValueOf(v)); mv.IsValid() {
+				if mv := val.MapIndex(reflect.ValueOf(strings.TrimSpace(v))); mv.IsValid() {
 					sqlBuilder.WriteRune('?')
 					if isNil {
 						args = append(args, nil)
