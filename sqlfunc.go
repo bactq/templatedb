@@ -231,64 +231,55 @@ func indirect(v reflect.Value) (rv reflect.Value, isNil bool) {
 }
 
 func (s *commonSqlFunc) inParam(list reflect.Value, fieldNames ...string) (string, []any, error) {
-	list, isNil := util.Indirect(list)
+	list, isNil := indirect(list)
 	if isNil {
-		return "in(NULL)", nil, nil
+		return "", nil, errors.New("in params : the parameter is nil")
 	}
 	if list.Kind() == reflect.Slice || list.Kind() == reflect.Array {
-		sb := strings.Builder{}
-		sb.WriteString("in (")
 		var args []any = make([]any, 0, list.Len())
 		exists := make(map[any]any)
-		for i := 0; i < list.Len(); i++ {
-			item, isNil := util.Indirect(list.Index(i))
-			if isNil {
-				continue
+		elemType := list.Elem().Type()
+		switch elemType.Kind() {
+		case reflect.Struct:
+			var fieldName []string
+			for _, v := range fieldNames {
+				fieldName = append(fieldName, strings.Split(v, ".")...)
 			}
-			if !item.IsValid() {
-				continue
+			var nameIndex [][]int
+			findType := elemType
+			for i, v := range fieldName {
+				tField, ok := s.getFieldByName(findType, strings.TrimSpace(v), nil)
+				if !ok {
+					return "", nil, fmt.Errorf("in params : The attribute %s was not found in the structure %s.%s", strings.Join(fieldName[:i], "."), findType.PkgPath(), findType.Name())
+				}
+				findType = tField.Type
+				for findType.Kind() == reflect.Pointer {
+					findType = findType.Elem()
+				}
+				nameIndex = append(nameIndex, tField.Index)
 			}
-			switch item.Kind() {
-			case reflect.Struct:
-				sv := item
-				for i := 0; i < len(fieldNames); i++ {
-					fieldName := fieldNames[i]
-					sv, isNil = util.Indirect(sv)
+		foreachRow:
+			for i := 0; i < list.Len(); i++ {
+				item := list.Index(i)
+				for _, v := range nameIndex {
+					item, isNil = indirect(item.FieldByIndex(v))
 					if isNil {
-						args = append(args, nil)
-						break
-					}
-					tField, ok := s.getFieldByName(sv.Type(), fieldName, nil)
-					if ok {
-						field, err := sv.FieldByIndexErr(tField.Index)
-						if err != nil {
-							return "", nil, err
-						}
-						if i == len(fieldNames)-1 {
-							if field.Kind() == reflect.Slice || field.Kind() == reflect.Array {
-								for i := 0; i < field.Len(); i++ {
-									val := field.Index(i).Interface()
-									if _, ok := exists[val]; !ok {
-										exists[val] = struct{}{}
-										args = append(args, val)
-									}
-								}
-							} else {
-								val := field.Interface()
-								if _, ok := exists[val]; !ok {
-									exists[val] = struct{}{}
-									args = append(args, val)
-								}
-							}
-						} else {
-							sv = field
-						}
-					} else {
-						return "", nil, fmt.Errorf("in params : The attribute %s was not found in the structure %s.%s", fieldName, item.Type().PkgPath(), item.Type().Name())
+						continue foreachRow
 					}
 				}
-			case reflect.Map:
-				if item.Type().Key().Kind() == reflect.String {
+				val := item.Interface()
+				if _, ok := exists[val]; !ok {
+					exists[val] = struct{}{}
+					args = append(args, val)
+				}
+			}
+		case reflect.Map:
+			for i := 0; i < list.Len(); i++ {
+				item, isNil := indirect(list.Index(i))
+				if isNil {
+					continue
+				}
+				if elemType.Key().Kind() == reflect.String {
 					fieldValue := item.MapIndex(reflect.ValueOf(fmt.Sprint(fieldNames)))
 					if fieldValue.IsValid() {
 						val := fieldValue.Interface()
@@ -297,12 +288,15 @@ func (s *commonSqlFunc) inParam(list reflect.Value, fieldNames ...string) (strin
 							args = append(args, val)
 						}
 					} else {
-						return "", nil, fmt.Errorf("in params : fieldValue in map[%s] IsValid", fmt.Sprint(fieldNames))
+						continue
 					}
 				} else {
 					return "", nil, fmt.Errorf("in params : Map key Type is not string")
 				}
-			default:
+			}
+		default:
+			for i := 0; i < list.Len(); i++ {
+				item := list.Index(i)
 				val := item.Interface()
 				if _, ok := exists[val]; !ok {
 					exists[val] = struct{}{}
@@ -310,6 +304,8 @@ func (s *commonSqlFunc) inParam(list reflect.Value, fieldNames ...string) (strin
 				}
 			}
 		}
+		sb := strings.Builder{}
+		sb.WriteString("in (")
 		for i := range args {
 			if i > 0 {
 				sb.WriteByte(',')
@@ -338,28 +334,30 @@ func (s *commonSqlFunc) value(val reflect.Value, value string) (string, []any, e
 		if i > 0 {
 			sqlBuilder.WriteRune(',')
 		}
-		ps := "?"
 		column = strings.TrimSpace(column)
-		switch column {
-		case "CURRENT_TIMESTAMP":
-			sqlBuilder.WriteString(column)
-		default:
-			switch val.Kind() {
-			case reflect.Struct:
-				tField, ok := s.getFieldByName(val.Type(), column, nil)
-				if ok {
-					field, err := val.FieldByIndexErr(tField.Index)
-					if err != nil {
-						return "", nil, err
-					}
-					args = append(args, field.Interface())
+		switch val.Kind() {
+		case reflect.Struct:
+			tField, ok := s.getFieldByName(val.Type(), column, nil)
+			if ok {
+				field, err := val.FieldByIndexErr(tField.Index)
+				if err != nil {
+					return "", nil, err
 				}
-			case reflect.Map:
-				if val.Type().Key().Kind() == reflect.String {
+				sqlBuilder.WriteRune('?')
+				args = append(args, field.Interface())
+			} else {
+				sqlBuilder.WriteString(column)
+			}
+		case reflect.Map:
+			if val.Type().Key().Kind() == reflect.String {
+				mv := val.MapIndex(reflect.ValueOf(column))
+				if mv.IsValid() {
+					sqlBuilder.WriteRune('?')
 					args = append(args, val.MapIndex(reflect.ValueOf(column)).Interface())
+				} else {
+					sqlBuilder.WriteString(column)
 				}
 			}
-			sqlBuilder.WriteString(ps)
 		}
 	}
 	return sqlBuilder.String(), args, nil
