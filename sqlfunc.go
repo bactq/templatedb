@@ -384,7 +384,7 @@ func (s *commonSqlFunc) values(sVal reflect.Value, value string) (string, []any,
 		var valueIndex [][]int = make([][]int, len(values))
 		findFieldNum := 0
 		for i, v := range values {
-			if sf, ok := elemType.FieldByName(strings.TrimSpace(v)); ok {
+			if sf, ok := s.getFieldByName(elemType, strings.TrimSpace(v), nil); ok {
 				valueIndex[i] = sf.Index
 				findFieldNum++
 			}
