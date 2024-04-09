@@ -77,22 +77,24 @@ const (
 	//new add sql type
 	itemAtSign //@ sign
 	itemParam  //? 参数化
+	itemSqlIfAnd
 )
 
 var key = map[string]itemType{
-	".":        itemDot,
-	"block":    itemBlock,
-	"break":    itemBreak,
-	"continue": itemContinue,
-	"define":   itemDefine,
-	"else":     itemElse,
-	"end":      itemEnd,
-	"if":       itemIf,
-	"range":    itemRange,
-	"nil":      itemNil,
-	"template": itemTemplate,
-	"include":  itemTemplate, //取个别名
-	"with":     itemWith,
+	".":          itemDot,
+	"block":      itemBlock,
+	"break":      itemBreak,
+	"continue":   itemContinue,
+	"define":     itemDefine,
+	"else":       itemElse,
+	"end":        itemEnd,
+	"if":         itemIf,
+	"range":      itemRange,
+	"nil":        itemNil,
+	"template":   itemTemplate,
+	"include":    itemTemplate, //取个别名
+	"with":       itemWith,
+	"sql_if_and": itemSqlIfAnd,
 }
 
 const eof = -1
@@ -193,11 +195,16 @@ loop:
 				break loop
 			}
 			end = i
+			var graveAccent int
 			for j := i; j >= 0; {
 				prune, pi := utf8.DecodeLastRuneInString(l.input[:j])
 				j = j - Pos(pi)
 				switch prune {
 				case '`':
+					graveAccent++
+					if graveAccent > 1 {
+						break loop
+					}
 					end -= 1
 				case '\t', '\n', '\f', '\r', ' ', ',', '.', l.endRightDelim:
 					break loop
@@ -558,6 +565,19 @@ Loop:
 			switch {
 			case key[word] > itemKeyword:
 				item := key[word]
+				switch item {
+				case itemSqlIfAnd:
+					l.ignore()
+					for {
+						l.next()
+						delim, _ := l.atRightDelim()
+						if delim {
+							break
+						}
+					}
+					l.emit(itemSqlIfAnd)
+					return lexInsideAction
+				}
 				if item == itemBreak && !l.breakOK || item == itemContinue && !l.continueOK {
 					l.emit(itemIdentifier)
 				} else {

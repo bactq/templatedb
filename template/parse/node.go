@@ -159,14 +159,13 @@ type AtSignNode struct {
 	NodeType
 	Pos
 	tr                 *Tree
-	Text               string   // The text; may span newlines.
-	Vars               []string // variables defined at the moment.
+	Column             []string // The text; may span newlines.
 	PrefixPoundSign    bool     // is enable pound sign
 	SuffixQuestionMark bool     // is enable question mark
 	Global             bool     // is enable global
 }
 
-func (t *Tree) newAtSign(pos Pos, text string, vars []string) *AtSignNode {
+func (t *Tree) newAtSign(pos Pos, text string) *AtSignNode {
 	fieldName := text
 	prefixPoundSign := false
 	suffixQuestionMark := false
@@ -183,11 +182,11 @@ func (t *Tree) newAtSign(pos Pos, text string, vars []string) *AtSignNode {
 		fieldName = strings.TrimSuffix(fieldName, "?")
 		suffixQuestionMark = true
 	}
-	return &AtSignNode{tr: t, NodeType: NodeAtSign, Pos: pos, Text: fieldName, Vars: vars, PrefixPoundSign: prefixPoundSign, SuffixQuestionMark: suffixQuestionMark, Global: global}
+	return &AtSignNode{tr: t, NodeType: NodeAtSign, Pos: pos, Column: strings.Split(fieldName, "."), PrefixPoundSign: prefixPoundSign, SuffixQuestionMark: suffixQuestionMark, Global: global}
 }
 
 func (t *AtSignNode) String() string {
-	return fmt.Sprintf("@%s", t.Text)
+	return fmt.Sprintf("@%s", strings.Join(t.Column, "."))
 }
 
 func (t *AtSignNode) writeTo(sb *strings.Builder) {
@@ -199,7 +198,7 @@ func (t *AtSignNode) tree() *Tree {
 }
 
 func (t *AtSignNode) Copy() Node {
-	return &AtSignNode{tr: t.tr, NodeType: NodeSqlParam, Pos: t.Pos, Text: t.Text}
+	return &AtSignNode{tr: t.tr, NodeType: NodeSqlParam, Pos: t.Pos, Column: t.Column}
 }
 
 // AtSignNode holds plain text.
@@ -1083,4 +1082,53 @@ func (t *TemplateNode) tree() *Tree {
 
 func (t *TemplateNode) Copy() Node {
 	return t.tr.newTemplate(t.Pos, t.Line, t.Name, t.Pipe.CopyPipe())
+}
+
+type ColumnInfo struct {
+	Alias string
+	Name  string
+}
+
+func (c *ColumnInfo) String() string {
+	if len(c.Alias) > 0 {
+		return c.Alias + "." + c.Name
+	} else {
+		return c.Name
+	}
+}
+
+type SqlIfAndNode struct {
+	NodeType
+	Pos
+	Line   int // The line number in the input. Deprecated: Kept for compatibility.
+	Column []*ColumnInfo
+}
+
+func (t *Tree) newSqlIfAndNode(pos Pos, line int, columns string) *SqlIfAndNode {
+	var column []*ColumnInfo
+	for _, v := range strings.Split(columns, ",") {
+		alias, col, _ := strings.Cut(strings.TrimSpace(v), ".")
+		column = append(column, &ColumnInfo{
+			Alias: alias,
+			Name:  col,
+		})
+	}
+	return &SqlIfAndNode{NodeType: NodeTemplate, Pos: pos, Line: line, Column: column}
+}
+
+func (t *SqlIfAndNode) String() string {
+	var sb strings.Builder
+	t.writeTo(&sb)
+	return sb.String()
+}
+
+func (t *SqlIfAndNode) writeTo(sb *strings.Builder) {
+}
+
+func (t *SqlIfAndNode) tree() *Tree {
+	return nil
+}
+
+func (t *SqlIfAndNode) Copy() Node {
+	return nil
 }

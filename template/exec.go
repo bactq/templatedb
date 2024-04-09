@@ -296,6 +296,8 @@ func (s *state) walk(dot reflect.Value, node parse.Node) {
 	case *parse.BreakNode:
 		panic(ErrWalkBreak)
 	case *parse.CommentNode:
+	case *parse.SqlIfAndNode:
+		s.evalSqlIfAnd(dot, node)
 	case *parse.ContinueNode:
 		panic(ErrWalkContinue)
 	case *parse.IfNode:
@@ -316,6 +318,24 @@ func (s *state) walk(dot reflect.Value, node parse.Node) {
 		s.walkIfOrWith(parse.NodeWith, dot, node.Pipe, node.List, node.ElseList)
 	default:
 		s.errorf("unknown node: %s", node)
+	}
+}
+
+func (s *state) evalSqlIfAnd(val reflect.Value, node *parse.SqlIfAndNode) {
+	for _, v := range node.Column {
+		val = s.evalField(val, v.Name, node, nil, missingVal, val)
+		truth, _ := isTrue(val)
+		if !truth {
+			continue
+		}
+		ps, arg, err := s.tmpl.GetParameter(val.Interface())
+		if err != nil {
+			s.writeError(fmt.Errorf("evalAtSign output print:%s", err))
+		}
+		if _, err = fmt.Fprintf(s.wr, " and %s=%s ", v.String(), ps); err != nil {
+			s.writeError(fmt.Errorf("evalAtSign output print:%s", err))
+		}
+		s.args = append(s.args, arg)
 	}
 }
 
@@ -367,7 +387,7 @@ func (s *state) evalAtSign(val reflect.Value, node *parse.AtSignNode) {
 	if node.Global && s.pv_index != nil {
 		val = reflect.ValueOf(s.pv_index)
 	}
-	fieldNames := strings.Split(node.Text, ".")
+	fieldNames := node.Column
 	for _, fieldName := range fieldNames {
 		val = s.evalField(val, fieldName, node, nil, missingVal, val)
 		if val == zero {

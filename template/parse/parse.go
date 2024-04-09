@@ -368,7 +368,7 @@ func (t *Tree) textOrAction() Node {
 	case itemText:
 		return t.newText(token.pos, token.val)
 	case itemAtSign:
-		return t.newAtSign(token.pos, token.val, t.vars)
+		return t.newAtSign(token.pos, token.val)
 	case itemParam:
 		return t.newSqlParamNode(token.pos, token.val)
 	case itemLeftDelim:
@@ -414,6 +414,9 @@ func (t *Tree) action() (n Node) {
 		return t.templateControl()
 	case itemWith:
 		return t.withControl()
+	case itemSqlIfAnd:
+		t.nextNonSpace()
+		return t.newSqlIfAndNode(token.pos, token.line, token.val)
 	}
 	t.backup()
 	token := t.peek()
